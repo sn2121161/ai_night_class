@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="sunset-warm">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Skill 教学 · 结构详解与实战</title>
+<link rel="stylesheet" href="../assets/fonts.css">
+<link rel="stylesheet" href="../assets/base.css">
+<link rel="stylesheet" id="theme-link" href="../assets/themes/sunset-warm.css">
+<link rel="stylesheet" href="../assets/animations/animations.css">
+<style>
+/* ===== 通用组件 ===== */
+.slide .notes{margin-top:26px;padding-top:12px;border-top:1px dashed var(--border-strong);font-size:12px;color:var(--text-3);line-height:1.6}
+.slide .notes::before{content:"备注 · ";font-weight:600;color:var(--accent)}
+/* slide 2 · 分层架构 */
+.arch{margin-top:14px;display:grid;grid-template-rows:auto auto auto auto;gap:14px}
+.arch .tier{display:grid;grid-template-columns:118px 1fr;align-items:stretch;gap:14px}
+.arch .tname{display:flex;align-items:center;justify-content:center;background:var(--surface-2);border-radius:var(--radius);padding:12px;font-weight:600;font-size:13px;color:var(--text-2);letter-spacing:.06em;text-align:center;line-height:1.5}
+.arch .cells{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.arch .cells.one{grid-template-columns:1fr}
+.arch .cell{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;box-shadow:var(--shadow);display:flex;align-items:center;gap:10px}
+.arch .cell .dot{flex:none;width:10px;height:10px;border-radius:50%}
+.arch .cell h4{font-size:13.5px;margin:0 0 2px}
+.arch .cell p{font-size:11px;color:var(--text-3);margin:0;line-height:1.5}
+.arch .cell .st{margin-left:auto;flex:none;font-size:11px;padding:3px 10px;border-radius:999px;background:var(--surface-2);color:var(--text-2);white-space:nowrap}
+.arch .tier.hl .cell{border-top:3px solid var(--accent)}
+.dot-always{background:var(--accent-3)}
+.dot-ondemand{background:var(--accent)}
+.dot-exec{background:var(--accent-2)}
+.dot-none{background:var(--text-3)}
+.legend{display:flex;gap:18px;margin-top:14px;font-size:12px;color:var(--text-2);align-items:center;flex-wrap:wrap}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:50%;display:inline-block}
+/* slide 3 · 渐进式披露 */
+.pd{display:grid;grid-template-columns:1fr 400px;gap:30px;margin-top:18px;align-items:start}
+.pd .why{display:grid;gap:12px}
+.pd .why .card{padding:14px 18px}
+.pd .why h4{font-size:14.5px;margin:0 0 4px}
+.pd .why p{font-size:12px;color:var(--text-2);line-height:1.6;margin:0}
+.funnel .frow{margin-bottom:16px}
+.funnel .bar{height:46px;border-radius:10px;background:var(--grad);color:#fff;display:flex;align-items:center;padding:0 16px;font-weight:600;font-size:13.5px;box-shadow:var(--shadow);white-space:nowrap}
+.funnel .cap{margin-top:5px;font-size:11.5px;color:var(--text-2)}
+.funnel .cap b{color:var(--accent)}
+/* slide 4/5 · 文件树 */
+.tree{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 20px;font-family:ui-monospace,'Cascadia Code',Consolas,monospace;font-size:12.5px;line-height:1.9;color:var(--text-1)}
+.tree .dir{color:var(--accent);font-weight:600}
+.tree .cmt{color:var(--text-3);font-size:11px}
+.tree .hot{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:700}
+/* slide 4 · humanizer */
+.hz{display:grid;grid-template-columns:330px 1fr;gap:22px;margin-top:14px;align-items:start}
+.hzpoints{display:grid;gap:10px}
+.hzpoints .card{padding:12px 16px}
+.hzpoints h4{font-size:13.5px;margin:0 0 3px}
+.hzpoints p{font-size:11.5px;color:var(--text-2);line-height:1.6;margin:0}
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.vs .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 18px}
+.vs .panel .tagline{display:inline-block;font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;margin-bottom:8px}
+.vs .bad .tagline{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad)}
+.vs .good .tagline{background:color-mix(in srgb,var(--good) 16%,transparent);color:var(--good)}
+.vs .panel p{font-size:12px;color:var(--text-2);line-height:1.65;margin:0}
+.vs .good{border-top:3px solid var(--good)}
+.vs .bad{border-top:3px solid var(--bad)}
+/* slide 6 · 代码硬控流程 */
+.flow{display:flex;align-items:stretch;gap:8px;margin:16px 0}
+.fnode{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 12px;text-align:center;box-shadow:var(--shadow)}
+.fnode h5{font-size:13px;margin:0 0 3px;color:var(--accent)}
+.fnode p{font-size:11px;color:var(--text-3);margin:0;line-height:1.5}
+.farr{display:flex;align-items:center;color:var(--accent);font-weight:800;font-size:16px}
+.cmdline{background:#2a160a;color:#ffd9b8;border-radius:12px;padding:12px 18px;font-family:ui-monospace,Consolas,monospace;font-size:12.5px;margin:6px 0 0}
+.cmdline .c{color:#f2a341}
+/* slide 7 · 练习案例 */
+.case{display:grid;grid-template-columns:360px 1fr;gap:26px;margin-top:16px;align-items:stretch}
+.casecards{display:grid;grid-template-rows:repeat(3,1fr);gap:12px}
+.ccard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:13px 18px}
+.ccard h4{font-size:14px;margin:0 0 5px;display:flex;align-items:center;gap:8px}
+.ccard h4 .badge{font-size:11px;padding:2px 10px;border-radius:999px;background:var(--surface-2);color:var(--text-2);font-weight:500}
+.ccard p{font-size:12px;color:var(--text-2);line-height:1.6;margin:0}
+.ccard.hl{border-top:3px solid var(--accent)}
+/* slide 8 · 素材 */
+.mats{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.mat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:13px 18px}
+.mat h4{font-size:13.5px;margin:0 0 6px;color:var(--accent)}
+.mat pre{margin:0;font-family:ui-monospace,'Cascadia Code',Consolas,monospace;font-size:11px;line-height:1.7;color:var(--text-2);white-space:pre-wrap}
+.mat ul{margin:0;padding-left:18px;font-size:11.5px;color:var(--text-2);line-height:1.8}
+/* ===== 标准 16:9 PPT 画幅（1280×720 等比缩放） ===== */
+html,body{height:100%}
+body{display:flex;align-items:center;justify-content:center;background:#f3e6d4;margin:0}
+.deck{width:min(1280px,96vw,168vh);aspect-ratio:16/9;height:auto;flex:none;border-radius:14px;box-shadow:0 24px 64px rgba(120,60,20,.20);overflow:hidden}
+.slide{padding:44px 60px}
+.deck-header{top:16px;left:36px;right:36px}
+.deck-footer{bottom:16px;left:36px;right:36px}
+/* ===== 字号随画幅收敛 ===== */
+.h1{font-size:46px;margin-bottom:14px}
+.h2{font-size:32px;margin-bottom:8px}
+.h3{font-size:24px}
+.lede{font-size:17px}
+.kicker{font-size:12px}
+.pill{font-size:11px;padding:3px 11px}
+</style>
+</head>
+<body data-themes="sunset-warm,catppuccin-latte,soft-pastel,japanese-minimal,midcentury" data-theme-base="../assets/themes/">
+<div class="deck">
+
+  <!-- 1. 封面 -->
+  <section class="slide is-active" data-title="封面">
+    <div class="deck-header"><span class="eyebrow">技能教学</span><span class="eyebrow">2026-09</span></div>
+    <div class="anim-stagger-list">
+      <p class="kicker">从读懂结构到动手实战</p>
+      <h1 class="h1 anim-fade-up" data-anim="fade-up">
+        读懂Skill结构<br><span class="gradient-text">写好你自己的技能</span>
+      </h1>
+      <p class="lede">目录结构详解 × 渐进式披露 × 真实技能案例剖析 × 课堂动手练习</p>
+      <div class="row wrap mt-l">
+        <span class="pill pill-accent">结构详解</span>
+        <span class="pill">渐进式披露原则</span>
+        <span class="pill">上下文规则</span>
+        <span class="pill">技能案例分析</span>
+        <span class="pill">技能创建实战</span>
+      </div>
+    </div>
+    <div class="deck-footer"><span class="dim2">九页</span><span class="slide-number" data-current="1" data-total="9"></span></div>
+    <!-- <div class="notes">开场：今天的课程分四段——先读懂 skill 的目录结构与加载机制，再拆解两个真实技能（一个零代码、一个代码驱动），最后动手写一个会议纪要整理助手。</div> -->
+  </section>
+
+  <!-- 2. 结构详解 -->
+  <section class="slide" data-title="Skill 结构详解">
+    <p class="kicker">Anatomy · 一个 skill 里到底有什么</p>
+    <h2 class="h2">四层文件，四种<span class="gradient-text">上下文命运</span></h2>
+    <div class="arch anim-stagger-list" data-anim-target>
+      <div class="tier hl"><div class="tname">必需加载</div>
+        <div class="cells one">
+          <div class="cell"><i class="dot dot-always"></i><div><h4>SKILL.md</h4><p>顶部元数据（name + description，决定 AI 何时触发本技能）＋ 正文 核心指令（工作流程、资源调用方式）</p></div><span class="st">元数据常驻 · 正文触发时加载</span></div>
+        </div>
+      </div>
+      <div class="tier"><div class="tname">标准资源目录</div>
+        <div class="cells">
+          <div class="cell"><i class="dot dot-exec"></i><div><h4>scripts/</h4><p>保存确定性代码，直接运行出结果，不会由大模型推理</p></div><span class="st">执行而非读取</span></div>
+          <div class="cell"><i class="dot dot-ondemand"></i><div><h4>references/</h4><p>规范、术语表、踩过的坑等参考资料，工作流程走到需要它的那一步时才读入</p></div><span class="st">按需读入</span></div>
+          <div class="cell"><i class="dot dot-none"></i><div><h4>assets/</h4><p>PPT 模板、logo、字体等产出素材，不读入上下文</p></div><span class="st">不进上下文</span></div>
+        </div>
+      </div>
+      <div class="tier"><div class="tname">扩展目录</div>
+        <div class="cells">
+          <div class="cell"><i class="dot dot-ondemand"></i><div><h4>agents/</h4><p>子代理角色卡（人设与分工），仅当需要派生子代理时读入其独立上下文</p></div><span class="st">派生角色时才读</span></div>
+          <div class="cell"><i class="dot dot-ondemand"></i><div><h4>examples/</h4><p>对照样例，传递规则说不清的手感，AI 拿不准尺度时参照</p></div><span class="st">需要时读入</span></div>
+          <div class="cell"><i class="dot dot-none"></i><div><h4>evals/</h4><p>测试用例与及格线，仅离线评测 skill 质量时使用，日常运行不加载</p></div><span class="st">仅评测时用</span></div>
+        </div>
+      </div>
+      <div class="tier"><div class="tname">系统与人类</div>
+        <div class="cells">
+          <div class="cell"><i class="dot dot-none"></i><div><h4>README.md</h4><p>面向人类的技能介绍与安装说明，AI 不会读取</p></div><span class="st">AI 不读</span></div>
+          <div class="cell"><i class="dot dot-none"></i><div><h4>LICENSE</h4><p>开源许可证，法律用途文件，与 AI 运行无关</p></div><span class="st">AI 不读</span></div>
+          <div class="cell"><i class="dot dot-none"></i><div><h4>_meta.json</h4><p>市场安装来源与用户修改标记（userModified），由系统自动维护</p></div><span class="st">系统专用</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i class="dot-always"></i>常驻/触发加载</span>
+      <span><i class="dot-ondemand"></i>按需读入</span>
+      <span><i class="dot-exec"></i>执行而非读取</span>
+      <span><i class="dot-none"></i>不进上下文</span>
+      <span style="margin-left:auto;color:var(--accent);font-weight:600">判断标准：AI 干活那一刻需要看它吗？</span>
+    </div>
+    <div class="deck-footer"><span class="dim2">结构 · 上下文规则</span><span class="slide-number" data-current="2" data-total="9"></span></div>
+    <!-- <div class="notes">逐层讲解，让学员记住右侧四种加载状态。看到任何陌生文件，用右下角那句话自问自答。</div> -->
+  </section>
+
+  <!-- 3. 渐进式披露 -->
+  <section class="slide" data-title="渐进式披露">
+    <p class="kicker">Progressive Disclosure · 渐进式披露原则</p>
+    <h2 class="h2">上下文是稀缺资源，信息<span class="gradient-text">按需加载</span></h2>
+    <div class="pd">
+      <div class="why anim-stagger-list" data-anim-target>
+        <div class="card"><h4>为什么必须分层</h4><p>AI 每轮对话的上下文窗口有限且昂贵。若把所有技能的全部内容常驻，几个技能就能挤爆窗口。分层的本质：只让"当前这一刻需要的信息"占用上下文。</p></div>
+        <div class="card"><h4>对作者的要求</h4><p>① SKILL.md 必须精简，细节到 references体现；② 同一条信息只在 SKILL.md 或 references 出现一次，不重复存放；③ 代码执行的结果才进上下文，代码本身不进。</p></div>
+        <div class="card"><h4>触发链</h4><p>用户说了一句话 → AI 扫描所有技能的元数据（第 1 层）→ 命中则加载 SKILL.md 正文（第 2 层）→ 按正文指示，在干活过程中读取具体资源（第 3 层）。</p></div>
+      </div>
+      <div class="funnel anim-fade-up" data-anim="fade-up">
+        <div class="frow">
+          <div class="bar" style="width:100%">第 1 层 · 元数据（name + description）</div>
+          <div class="cap"><b>始终常驻</b> · 约 100 词 · 每个技能都占一点，决定"何时触发"</div>
+        </div>
+        <div class="frow">
+          <div class="bar" style="width:66%">第 2 层 · SKILL.md 正文</div>
+          <div class="cap"><b>触发时才加载</b> · 控制在 5k 词内 · 核心工作流程与资源地图</div>
+        </div>
+        <div class="frow">
+          <div class="bar" style="width:38%">第 3 层 · 资源文件</div>
+          <div class="cap"><b>干活时按需</b> · 体量基本无上限 · scripts 执行 / references 读入 / assets 使用</div>
+        </div>
+      </div>
+    </div>
+    <div class="deck-footer"><span class="dim2">机制 · 三级加载</span><span class="slide-number" data-current="3" data-total="9"></span></div>
+    <div class="notes">右侧漏斗图是本页核心：宽度代表上下文占用。第一层每个技能都在交"门票钱"，所以 description 的写法直接决定技能会不会被想起来用。</div>
+  </section>
+
+  <!-- 4. 零代码案例 Humanizer -->
+  <section class="slide" data-title="零代码案例 · Humanizer">
+    <p class="kicker">Case 1 · 不需要写一行代码的技能</p>
+    <h2 class="h2"><span class="gradient-text">Humanizer</span> 去 AI 味写作助手</h2>
+    <div class="hz">
+      <div class="tree anim-fade-up" data-anim="fade-up">
+        <span class="dir">humanizer/</span><br>
+        ├─ SKILL.md <span class="cmt"># 407 行指令</span><br>
+        └─ references/<br>
+        &nbsp;&nbsp;&nbsp;├─ banned-words.md <span class="cmt"># 禁用词表</span><br>
+        &nbsp;&nbsp;&nbsp;├─ structures.md <span class="cmt"># 结构问题清单</span><br>
+        &nbsp;&nbsp;&nbsp;└─ examples.md <span class="cmt"># 改写示例库</span>
+      </div>
+      <div class="hzpoints anim-stagger-list" data-anim-target>
+        <div class="card"><h4>SKILL.md 怎么写 · 触发</h4><p>description 写满触发词："去AI味""降AI味""润色""像人话"——<b>用户怎么说，就怎么写</b>。</p></div>
+        <div class="card"><h4>SKILL.md 怎么写 · 正文</h4><p>描述这个技能的流程，每层有明确的输出产物和标准标准</p></div>
+        <div class="card"><h4>references/ 里装什么</h4><p><b>banned-words.md</b>：中文禁用词与句式表，含标点禁令、高频踩雷词、推荐口语词组；<b>structures.md</b>：过度结构化问题清单（排比、bullet 罗列等）；<b>examples.md</b>：19 组改写示例库，正反案例，覆盖网文、技术、营销、学术场景。</p></div>
+      </div>
+    </div>
+    <div class="vs anim-stagger-list" data-anim-target>
+      <div class="panel bad"><span class="tagline">反面 · AI 写的</span><p>"值得注意的是，随着数字化浪潮的持续推进，我们正站在范式转移的历史节点上……这不仅是效率的提升，更是思维的重构。综上所述，未来可期。"</p></div>
+      <div class="panel good"><span class="tagline">正面 · 去味后</span><p>"这季度我们做了三件事：投诉处理从两天压到四小时；上线自动报表，每人每周省出半天；合并了三个重复流程。下季度接着干。"</p></div>
+    </div>
+    <div class="deck-footer"><span class="dim2">案例 · 零代码</span><span class="slide-number" data-current="4" data-total="9"></span></div>
+    <div class="notes">强调：这个技能没有一个脚本，全部威力来自指令的精细度——禁用词表是"知识"，流程步骤是"可固化标准"，examples 正反对照是"手感"。</div>
+  </section>
+
+  <!-- 5. 我的技能 · 结构 -->
+  <section class="slide" data-title="实战技能 · 结构">
+    <p class="kicker">Case 2 · 代码驱动的真实技能</p>
+    <h2 class="h2"><span class="gradient-text">个股与概念板块K线相似度分析</span> · 目录拆解</h2>
+    <div class="hz" style="grid-template-columns:430px 1fr">
+      <div class="tree anim-fade-up" data-anim="fade-up">
+        <span class="dir">share_concept_analysis/</span><br>
+        ├─ skill.md <span class="cmt"># 主控文档</span><br>
+        ├─ scripts/ <span class="cmt"># 01-06 编号脚本 + 工具库</span><br>
+        &nbsp;&nbsp;&nbsp;├─ 01_fetch_stock_data.py <span class="cmt"># 取个股K线</span><br>
+        &nbsp;&nbsp;&nbsp;├─ 02_fetch_concept_data.py <span class="cmt"># 取概念指数</span><br>
+        &nbsp;&nbsp;&nbsp;├─ 03_search_concepts.py <span class="cmt"># 按主业搜概念</span><br>
+        &nbsp;&nbsp;&nbsp;├─ 04_align_and_merge.py <span class="cmt"># 交易日对齐</span><br>
+        &nbsp;&nbsp;&nbsp;├─ 05_calculate_similarity.py <span class="cmt"># 7维计算</span><br>
+        &nbsp;&nbsp;&nbsp;├─ <span class="hot">06_run_full_analysis.py</span> <span class="cmt"># 一键总控</span><br>
+        &nbsp;&nbsp;&nbsp;└─ utils.py <span class="cmt"># 权重与评分</span><br>
+        ├─ references/ <span class="cmt"># 理论·API调用方法·踩坑</span><br>
+        ├─ agents/ <span class="cmt"># 分析师角色卡</span><br>
+        ├─ assets/ <span class="cmt"># 模板与示例</span><br>
+        └─ output/ <span class="cmt"># 分析产物</span>
+      </div>
+      <div class="hzpoints anim-stagger-list" data-anim-target>
+        <div class="card"><h4>skill.md · 元数据</h4><p>name：概念板块K线相似度分析；description：分析个股与同花顺概念板块指数的 K 线形态相似度，7 维指标量化排序；dependencies：依赖</b>。</p></div>
+        <div class="card"><h4>为什么需要 6+1 个脚本</h4><p>K线抓取、概念搜索、日期对齐、等指标计算全是<b>有唯一正确答案的确定性任务</b>——编号即执行顺序（01→06），utils.py 存放共用权重与评分函数。</p></div>
+        <div class="card"><h4>各目录分工</h4><p>references 存相似度理论、API 文档（按需读）、操作过程中踩的坑；agents 存分析师人设（必要时启用）；assets 存批量分析模板；output 隔离产物，不污染技能本体。</p></div>
+      </div>
+    </div>
+    <div class="deck-footer"><span class="dim2">案例 · 结构</span><span class="slide-number" data-current="5" data-total="9"></span></div>
+    <div class="notes">这是我自建的技能，没使用skill-creator创建，而是在和AI每轮的互动过程中总结的。这个流程有唯一正确的答案，因此适合用代码控制。</div>
+  </section>
+
+  <!-- 6. 目录文件详解 -->
+  <section class="slide" data-title="实战技能 · 目录文件详解">
+    <p class="kicker">Case 2 · 其他文件到底装了什么</p>
+    <h2 class="h2">references / agents / assets / output <span class="gradient-text">逐文件拆解</span></h2>
+    <div class="mats anim-stagger-list" data-anim-target style="grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+      <div class="mat"><h4>references/ · 按需查阅的知识</h4><ul>
+        <li><b>api_references.md</b>：这里面是数据来源的记载（同花顺API——akshare / 腾讯财经API），如何调用，有什么限制。</li>
+        <li><b>similarity_theory.md</b>：7 个指标的数学公式与解读口径（如 r^2 &gt; 0.5 为强相关）——说明"为什么这么算"</li>
+        <li><b>known_issues.md</b>：踩坑档案——同花顺API有速率和使用次数限制，东方财富 API 已被永久屏蔽，防止重蹈覆辙</li>
+        <li><b>analyzed_stocks.md</b>：已分析标的知识库，概念→个股反向索引（如"盐湖提锂→赣锋锂业 r^2 = 0.7434"），新闻驱动板块异动时快速反查关联个股</li>
+      </ul></div>
+      <div class="mat"><h4>agents/ · AI 的判断空间</h4><ul>
+        <li><b>concept_analyst_agent.md</b>："概念板块K线分析师"角色卡——是否启用子代理完成任务，<b>对不熟悉的股票先研究主营业务再筛选概念</b>。</li>
+      </ul></div>
+      <div class="mat"><h4>assets/ · 复用与示范</h4><ul>
+        <li><b>stock_analysis_template.py</b>：批量分析模板，只改 股票代码 / 股票名称 / 概念板块 三个配置即可复用全流程</li>
+        <li><b>example_analysis.md</b>：完整的流程记录，以工业富联为例，完整分析各个概念得分。</li>
+      </ul></div>
+      <div class="mat"><h4>output/ · 产物隔离区</h4><ul>
+        <li><b>{股票}_aligned_data.csv</b>：对齐后的共同交易日收盘价，供复查与二次分析</li>
+        <li><b>{股票}_similarity_results.csv</b>：各概念 7 维得分与综合排名——分析结论的最终载体。产物与技能本体分离，重跑不污染技能</li>
+      </ul></div>
+    </div>
+    <div class="deck-footer"><span class="dim2">案例 · 文件详解</span><span class="slide-number" data-current="6" data-total="9"></span></div>
+    <div class="notes">四个目录对应四种角色：references 是知识库（理论+API+踩坑+历史成果），agents 是判断外包，assets 是复用模板与教学示范，output 是产物隔离。</div>
+  </section>
+
+  <!-- 6. 代码硬控流程 -->
+  <section class="slide" data-title="实战技能 · 代码硬控">
+    <p class="kicker">Case 2 · 流程如何被代码"焊死"</p>
+    <h2 class="h2">脚本编号即流程，<span class="gradient-text">AI 无权自由发挥</span></h2>
+    <div class="flow anim-stagger-list" data-anim-target>
+      <div class="fnode"><h5>Step 1 获取数据</h5><p>腾讯财经API + akshare/THS，失败自动重试 5 次</p></div>
+      <div class="farr">→</div>
+      <div class="fnode"><h5>Step 2 日期对齐</h5><p>取所有序列的共同交易日，剔除缺失</p></div>
+      <div class="farr">→</div>
+      <div class="fnode"><h5>Step 3 7维计算</h5><p>Pearson / 余弦 / 方向 / 形态 / DTW / 振幅 / 回撤</p></div>
+      <div class="farr">→</div>
+      <div class="fnode"><h5>Step 4 加权评分</h5><p>Min-Max 归一化 → 加权求和 → 排序输出 CSV</p></div>
+    </div>
+    <div class="grid g2 mt-l anim-stagger-list" data-anim-target>
+      <div class="card">
+        <h4 style="font-size:14.5px;margin:0 0 6px">硬控手段 · 入口与权重都焊死</h4>
+        <p style="font-size:12px;color:var(--text-2);line-height:1.6;margin:0">skill.md 指定唯一入口，AI 只负责拼参数：</p>
+        <div class="cmdline">python scripts/06_run_full_analysis.py <span class="c">--code sh601138 --name "工业富联"</span></div>
+        <p style="font-size:12px;color:var(--text-2);line-height:1.6;margin:8px 0 0">代码控制的好处：</p>
+        <p style="font-size:12px;color:var(--text-2);line-height:1.6;margin:8px 0 0">     1. 大幅度减少Token的消耗；</p>
+        <p style="font-size:12px;color:var(--text-2);line-height:1.6;margin:8px 0 0">     2. 不同大模型运行结果依然相同，不会出现漂移。</p>
+      </div>
+      <div class="card">
+        <h4 style="font-size:14.5px;margin:0 0 8px">真实产出 · 兆易创新（603986）概念加权得分表</h4>
+        <table style="width:100%;border-collapse:collapse;font-size:11.5px;color:var(--text-2)">
+          <tr style="border-bottom:2px solid var(--border-strong);color:var(--text-1);font-weight:600">
+            <td style="padding:5px 6px">排名</td><td style="padding:5px 6px">概念</td><td style="padding:5px 6px;text-align:right">Pearson r</td><td style="padding:5px 6px;text-align:right">方向一致性</td><td style="padding:5px 6px;text-align:right">形态相似度</td><td style="padding:5px 6px;text-align:right">综合得分</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--accent) 10%,transparent);font-weight:600;color:var(--accent)">
+            <td style="padding:5px 6px">1</td><td style="padding:5px 6px">存储芯片</td><td style="padding:5px 6px;text-align:right">0.7208</td><td style="padding:5px 6px;text-align:right">0.8000</td><td style="padding:5px 6px;text-align:right">0.9252</td><td style="padding:5px 6px;text-align:right">0.9487</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:5px 6px">2</td><td style="padding:5px 6px">国家大基金持股</td><td style="padding:5px 6px;text-align:right">0.6937</td><td style="padding:5px 6px;text-align:right">0.7789</td><td style="padding:5px 6px;text-align:right">0.9344</td><td style="padding:5px 6px;text-align:right">0.9473</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:5px 6px">3</td><td style="padding:5px 6px">汽车芯片</td><td style="padding:5px 6px;text-align:right">0.6424</td><td style="padding:5px 6px;text-align:right">0.7368</td><td style="padding:5px 6px;text-align:right">0.8535</td><td style="padding:5px 6px;text-align:right">0.7006</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:5px 6px">4</td><td style="padding:5px 6px">MCU芯片</td><td style="padding:5px 6px;text-align:right">0.6477</td><td style="padding:5px 6px;text-align:right">0.7368</td><td style="padding:5px 6px;text-align:right">0.7971</td><td style="padding:5px 6px;text-align:right">0.6384</td>
+          </tr>
+          <tr>
+            <td style="padding:5px 6px">5</td><td style="padding:5px 6px">芯片概念</td><td style="padding:5px 6px;text-align:right">0.6031</td><td style="padding:5px 6px;text-align:right">0.7368</td><td style="padding:5px 6px;text-align:right">0.8501</td><td style="padding:5px 6px;text-align:right">0.6039</td>
+          </tr>
+        </table>
+        <p style="font-size:11px;color:var(--text-3);line-height:1.6;margin:8px 0 0"><b style="color:var(--accent)">解读：兆易创新与"存储芯片"走势绑定最深</b>，与其主业（NOR Flash 存储龙头）高度吻合，验证指标有效。</p>
+      </div>
+    </div>
+    <div class="deck-footer"><span class="dim2">案例 · 硬控</span><span class="slide-number" data-current="7" data-total="9"></span></div>
+    <!-- <div class="notes">run_full_analysis.py 开头原文："依次执行：获取个股数据 → 获取概念数据 → 日期对齐 → 相似度计算 → 综合评分 → 输出"。分工原则：代码管"怎么算"（确定性、可复现），AI 管"算什么、怎么解读"（理解意图、传参、用角色卡解读排名并写入 analyzed_stocks.md）。</div> -->
+  </section>
+
+  <!-- 7. 练习：会议纪要 -->
+  <section class="slide" data-title="练习 · 会议纪要 Skill">
+    <p class="kicker">Practice · 零代码课堂练习（使用 /skill-creator 制作）</p>
+    <h2 class="h2"><span class="gradient-text">meeting-minutes</span> 会议纪要整理助手</h2>
+    <div class="case">
+      <div class="tree anim-fade-up" data-anim="fade-up">
+        <span class="dir">meeting-minutes/</span><br>
+        ├─ SKILL.md <span class="cmt"># 整理流程</span><br>
+        └─ references/<br>
+        &nbsp;&nbsp;&nbsp;├─ template.md <span class="cmt"># 纪要模板</span><br>
+        &nbsp;&nbsp;&nbsp;├─ <span class="hot">glossary.md</span> <span class="cmt"># 公司黑话</span><br>
+        &nbsp;&nbsp;&nbsp;└─ examples.md <span class="cmt"># 满分样例</span>
+        <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border-strong);font-size:11.5px;color:var(--text-2);line-height:1.7;font-family:var(--font-sans)">用途：把凌乱的会议速记，整理成<b>有结论、有待办、有负责人</b>的正式纪要。</div>
+      </div>
+      <div class="casecards anim-stagger-list" data-anim-target>
+        <div class="ccard"><h4>SKILL.md <span class="badge">四步流程</span></h4><p>读速记稿 → 查 glossary 懂术语 → 按 template 重组 → 自检字数与格式。铁律：<b>待办必须有负责人和时间，原文没写就标「待确认」，禁止编造</b>。</p></div>
+        <div class="ccard hl"><h4>glossary.md <span class="badge">教学灵魂</span></h4><p>AI 不知道「昆仑」是项目、「老王」是采购部王建国。<b>skill 的用途 = 给 AI 补上它不知道的你的私有知识</b>。</p></div>
+        <div class="ccard"><h4>examples.md <span class="badge">手感样板</span></h4><p>写一百遍「要简洁」，不如给一组<b>改之前 vs 改之后</b>。规则写进 references，手感交给样例。</p></div>
+      </div>
+    </div>
+    <div class="deck-footer"><span class="dim2">练习 · 任务说明</span><span class="slide-number" data-current="8" data-total="9"></span></div>
+    <div class="notes">制作方式：对 WorkBuddy 说"使用 /skill-creator 帮我创建 meeting-minutes 技能"，按流程生成骨架后填入下一页素材。</div>
+  </section>
+
+  <!-- 8. 学员素材 -->
+  <section class="slide" data-title="练习素材包">
+    <p class="kicker">Handout · 直接使用</p>
+    <h2 class="h2">会议纪要助手 · <span class="gradient-text">开发素材包</span></h2>
+    <div class="mats anim-stagger-list" data-anim-target>
+      <div class="mat"><h4>① references/template.md</h4><pre># 会议纪要模板
+1. 会议主题、时间、参会人
+2. 讨论要点（每个议题一段，
+   只记结论，不记过程）
+3. 待办事项表格：
+   事项 | 负责人 | 截止时间
+4. 下次会议时间（如有）
+全文不超过 500 字，口语改书面语</pre></div>
+      <div class="mat"><h4>② references/glossary.md</h4><pre># 术语对照。<b>（替换成自己公司的）</b>
+- 昆仑：Q3 供应链优化项目
+- 老王：采购部王建国，
+  负责供应商谈判
+- 过会：方案提交总监审批</pre></div>
+      <div class="mat"><h4>③ 测试速记稿（喂给技能验收）</h4><pre>老王说下周五之前供应商的报价
+得定下来，昆仑那边等不了了。
+小李插话说物流方案还没影，
+大家决定下周三再过一次会，
+纪要由我整理发群里。</pre></div>
+      <div class="mat"><h4>④ 验收标准（逐条打勾）</h4><ul><li>识别出负责人=采购部王建国</li><li>识别出"昆仑"=供应链项目</li><li>待办含截止时间"下周五"</li><li>"物流方案"时间标【待确认】</li><li>全文 ≤500 字，无口语残留</li></ul></div>
+    </div>
+    <div class="deck-footer"><span class="dim2">练习 · 素材</span><span class="slide-number" data-current="9" data-total="9"></span></div>
+    <div class="notes">素材需要根据自己的实际情况稍微改写。验收标准也可自己制定，实用为王。</div>
+  </section>
+
+</div>
+<script src="../assets/runtime.js"></script>
+</body></html>

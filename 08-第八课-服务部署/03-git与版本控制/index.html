@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="常州夜校第5课：面向零基础学员的 Git 与 AI 协作 HTML 幻灯片"
+    />
+    <meta name="theme-color" content="#070812" />
+    <title>Git × AI｜给代码一台时光机</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="deck" id="deck" aria-live="polite">
+      <section class="slide cover active" data-title="Git 与 AI" data-section="opening">
+        <div class="aurora" aria-hidden="true"></div>
+        <div class="eyebrow">常州夜校 008 · GIT FOR AI BEGINNERS</div>
+        <h1>Git <span>×</span> AI</h1>
+        <p class="cover-subtitle">给代码一台“时光机”</p>
+        <div class="cover-graph" aria-label="代码从主线分出 AI 试验分支的示意图">
+          <svg class="cover-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <path class="main-path" d="M 12 44 L 84 44" />
+            <path class="feature-path" d="M 40 44 L 58 64 L 86 84" />
+          </svg>
+          <span class="commit-dot dot-c1">C1</span>
+          <span class="commit-dot dot-c2">C2</span>
+          <span class="commit-dot dot-c3">C3</span>
+          <span class="commit-dot dot-f1">AI</span>
+          <span class="commit-dot dot-f2">✓</span>
+          <small class="main-label">main</small>
+          <small class="feature-label">feature/ai</small>
+        </div>
+        <p class="cover-punchline">AI 是动力，Git 是刹车。</p>
+        <p class="cover-hint">方向键翻页 · F 全屏 · O 目录 · N 讲师备注 · R 重播动画</p>
+        <aside class="speaker-note">
+          建议用时 3 分钟。先讲现场：“我让 AI 把登录页做得高级一点，它一口气改了 12 个文件，页面高级了，登录按钮也不认识我了。”提问：怎样知道它改了什么？怎样回到修改前？
+        </aside>
+      </section>
+
+      <section class="slide" data-title="Git 不等于 GitHub" data-section="map">
+        <div class="eyebrow">01 · 先分清两件事</div>
+        <h2>Git 是本地时光机，<br />GitHub 是云端协作站</h2>
+        <div class="local-remote-map">
+          <article class="computer-zone">
+            <small>YOUR COMPUTER</small>
+            <strong>Git 本地仓库</strong>
+            <div class="mini-history"><i></i><i></i><i></i><i></i></div>
+            <p>没网络也能看历史、建分支、做 Commit</p>
+          </article>
+          <div class="sync-bridge" aria-hidden="true">
+            <div class="sync-flow push-flow"><span>push</span><i></i></div>
+            <div class="sync-flow pull-flow"><span>pull</span><i></i></div>
+          </div>
+          <article class="cloud-zone">
+            <small>REMOTE SERVER</small>
+            <strong>GitHub 远程仓库</strong>
+            <div class="cloud-mark">origin</div>
+            <p>让团队看到、讨论、审核和合并改动</p>
+          </article>
+        </div>
+        <p class="bottom-quote">Git ≠ GitHub。Git 也可以连接 GitLab、Gitee 或公司自建服务器。</p>
+        <aside class="speaker-note">
+          建议用时 5 分钟。先问学员：断网之后 Git 还能不能 Commit？答案是可以，因为 Commit 保存在本地仓库。GitHub 是托管远程 Git 仓库并提供协作功能的平台。
+
+          [Sources]
+          - https://docs.github.com/en/repositories/creating-and-managing-repositories/about-repositories
+          - https://docs.github.com/en/get-started/git-basics/about-remote-repositories
+        </aside>
+      </section>
+
+      <section class="slide" data-title="一次改动的旅程" data-section="map">
+        <div class="eyebrow">02 · 先看整张地图</div>
+        <h2>一次改动，<br />要经过四个位置</h2>
+        <div class="journey-rail">
+          <article class="journey-step work-step">
+            <small>01</small><b>工作区</b><span>正在改文件</span><span>git status 查看状态</span>
+          </article>
+          <div class="command-arrow"><code>git add</code><i></i></div>
+          <article class="journey-step stage-step">
+            <small>02</small><b>暂存区</b><span>选中本次改动</span>
+          </article>
+          <div class="command-arrow"><code>git commit</code><i></i></div>
+          <article class="journey-step local-step">
+            <small>03</small><b>本地仓库</b><span>新增存档节点</span>
+          </article>
+          <div class="command-arrow"><code>git push</code><i></i></div>
+          <article class="journey-step remote-step">
+            <small>04</small><b>远程仓库</b><span>在线分支同步</span>
+          </article>
+        </div>
+        <div class="journey-questions">
+          <span><b>status</b> 我在哪里？</span>
+          <span><b>diff</b> 我改了什么？</span>
+          <span><b>log</b> 我存过什么？</span>
+        </div>
+        <aside class="speaker-note">
+          建议用时 5 分钟。这页是全课地图，不要在此处深挖命令参数。用厨房比喻：工作区是操作台，暂存区是打包台，本地仓库是自家档案室，远程仓库是云端总仓库。
+
+          [Sources]
+          - https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository
+        </aside>
+      </section>
+
+      <section class="slide" data-title="Commit 是本地存档" data-section="core">
+        <div class="eyebrow">03 · COMMIT</div>
+        <h2>Commit 给本地时间线，<br />增加一个存档点</h2>
+        <div class="commit-demo" id="commitDemo" data-state="working">
+          <div class="commit-actions" aria-label="Git add 和 commit 交互演示">
+            <article class="change-box">
+              <small>WORKING TREE</small><b>README.md · login.js</b><span>有改动，尚未选择</span>
+            </article>
+            <button id="demoAdd" class="commit-action" type="button"><small>STEP 1</small><code>git add</code></button>
+            <article class="stage-box">
+              <small>STAGING AREA</small><b id="stageFiles">等待 git add</b><span>准备本次存档内容</span>
+            </article>
+            <button id="demoCommit" class="commit-action" type="button" disabled><small>STEP 2</small><code>git commit</code></button>
+          </div>
+          <div class="commit-timeline">
+            <div class="timeline-line"></div>
+            <article class="history-node node-one"><i>C1</i><b>初始页面</b><span>09:00</span></article>
+            <article class="history-node node-two"><i>C2</i><b>增加按钮</b><span>09:20</span></article>
+            <article class="history-node node-three new-commit"><i>C3</i><b>修复登录</b><span>刚刚</span></article>
+          </div>
+          <div class="commit-feedback">
+            <span id="commitFeedback">先点 <code>git add</code>，把这次要保存的改动放进暂存区。</span>
+            <button id="demoReset" type="button">重新演示</button>
+          </div>
+        </div>
+        <p class="bottom-quote">拍了照，不等于已经发朋友圈。</p>
+        <aside class="speaker-note">
+          建议用时 6 分钟。强调 Commit 节点表示项目在那一刻的存档，不是“上传了一个文件”。演示顺序：git status → git diff → git add README.md → git diff --staged → git commit。
+
+          [Sources]
+          - https://git-scm.com/docs/git-commit
+          - https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository
+        </aside>
+      </section>
+
+      <section class="slide" data-title="Push 同步到在线分支" data-section="core">
+        <div class="eyebrow">04 · PUSH</div>
+        <h2>Push 把本地新节点，<br />同步到在线分支</h2>
+        <div class="push-visual">
+          <div class="branch-lane local-lane">
+            <small>LOCAL · feature/login</small>
+            <div class="lane-line"></div>
+            <i class="lane-node lane-one">C1</i><i class="lane-node lane-two">C2</i><i class="lane-node lane-three latest">C3</i>
+            <b>本地已到 C3</b>
+          </div>
+          <div class="push-transfer"><span>git push</span><i></i><b aria-hidden="true">●</b></div>
+          <div class="branch-lane remote-lane">
+            <small>GITHUB · origin/feature/login</small>
+            <div class="lane-line"></div>
+            <i class="lane-node lane-one">C1</i><i class="lane-node lane-two">C2</i><i class="lane-node lane-three latest incoming">C3</i>
+            <b>Push 后同样到 C3</b>
+          </div>
+        </div>
+        <div class="before-after"><span><small>PUSH 前</small>本地 C3 · 在线 C2</span><i>→</i><span><small>PUSH 后</small>本地 C3 · 在线 C3</span></div>
+        <aside class="speaker-note">
+          建议用时 6 分钟。先让学员指出 Push 前两条线的差别，再重播动画。第一次推送新分支可演示 git push -u origin feature/login，已经设置上游分支后通常可以直接 git push。
+
+          [Sources]
+          - https://docs.github.com/en/get-started/git-basics/about-remote-repositories
+          - https://git-scm.com/docs/git-push
+        </aside>
+      </section>
+
+      <section class="slide branch-slide" data-title="Branch 拉出新时间线" data-section="core">
+        <div class="eyebrow">05 · BRANCH</div>
+        <h2>Branch 从当前 Commit，<br />拉出一条新时间线</h2>
+        <div class="branch-tree" id="branchDemo" data-state="main" aria-label="main 与 feature-login 从当前节点 C3 分叉的历史图">
+          <svg class="branch-tree-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <path class="main-path" d="M 6 38 L 60 38" />
+            <path class="feature-path" pathLength="100" d="M 60 38 L 76 58 L 94 70" />
+          </svg>
+          <span class="tree-node tree-c1">C1</span>
+          <span class="tree-node tree-c2">C2</span>
+          <span class="tree-node tree-c3">C3</span>
+          <span class="tree-node tree-f1">F1</span>
+          <span class="tree-node tree-f2">F2</span>
+          <b class="tree-main-label">main · 独立 commit / push</b>
+          <b class="tree-feature-label">feature-login · 独立 commit / push</b>
+          <small class="fork-label">从当前 C3 分叉</small>
+          <span class="branch-pointer" id="branchPointer">feature-login（未切换）</span>
+        </div>
+        <div class="branch-controls" aria-label="创建、切换与提交的三步演示">
+          <button id="branchCreateButton" class="branch-step" type="button"><small>01 · 创建</small><code>git branch feature-login</code></button>
+          <button id="branchSwitchButton" class="branch-step" type="button" disabled><small>02 · 切换</small><code>git switch feature-login</code></button>
+          <button id="branchCommitButton" class="branch-step" type="button" disabled><small>03 · 提交两次</small><code>git commit × 2</code></button>
+        </div>
+        <div class="branch-feedback-row">
+          <span id="branchFeedback">先创建分支指针；这一步不会切换，也不会产生新 Commit。</span>
+          <button id="resetBranchButton" class="branch-reset" type="button" hidden>重新演示</button>
+        </div>
+        <p class="bottom-quote">两个分支各走各的时间线；Push 只更新对应的远程分支，互不覆盖。</p>
+        <aside class="speaker-note">
+          建议用时 7 分钟。严格按三步演示：git branch feature-login 只在当前 C3 创建分支指针；git switch feature-login 才切换 HEAD；后续 Commit 才让新时间线长出 F1、F2。强调两条分支拥有各自的 Commit 历史：切回 main 可以继续提交并 push 到 origin/main，feature-login 可以独立 push 到 origin/feature-login，互不覆盖。本页只讲分叉，Merge 和冲突留到后续。
+
+          [Sources]
+          - https://git-scm.com/book/en/v2/Git-Branching-Branches-in-a-Nutshell
+          - https://git-scm.com/book/en/v2/Git-Branching-Basic-Branching-and-Merging
+        </aside>
+      </section>
+
+      <section class="slide" data-title="小白命令地图" data-section="practice">
+        <div class="eyebrow">06 · COMMAND MAP</div>
+        <h2>不用背大全，<br />先会看、会存、会分、会同步</h2>
+        <div class="command-map">
+          <article class="command-family inspect-family">
+            <small>01 · 看</small>
+            <code>git status</code><span>我在哪里？</span>
+            <code>git diff</code><span>我改了什么？</span>
+            <code>git log --oneline</code><span>过去存了什么？</span>
+          </article>
+          <article class="command-family save-family">
+            <small>02 · 存</small>
+            <code>git add &lt;file&gt;</code><span>选中本次改动</span>
+            <code>git commit -m "..."</code><span>建立本地存档</span>
+          </article>
+          <article class="command-family branch-family">
+            <small>03 · 分</small>
+            <code>git branch</code><span>查看本地分支</span>
+            <code>git switch -c &lt;name&gt;</code><span>建立试验分支</span>
+          </article>
+          <article class="command-family sync-family">
+            <small>04 · 同步</small>
+            <code>git clone &lt;url&gt;</code><span>下载完整仓库</span>
+            <code>git pull</code><span>取回并尝试合并</span>
+            <code>git push</code><span>上传本地 Commit</span>
+          </article>
+        </div>
+        <p class="bottom-quote">迷路时先跑 <code>git status</code>，不要立刻猛踩油门。</p>
+        <aside class="speaker-note">
+          建议用时 6 分钟。这页不要逐条讲参数，让学员先记四个动词：看、存、分、同步。fetch 可在口头上补充为“只取回远程信息，不直接合并”，但不列入小白第一天必背命令。
+
+          [Sources]
+          - https://git-scm.com/cheat-sheet.pdf
+        </aside>
+      </section>
+
+      <section class="slide" data-title="Worktree 是独立工作台" data-section="practice">
+        <div class="eyebrow">07 · WORKTREE · 知道即可</div>
+        <h2>同一个仓库，<br />可以摆出两张工作台</h2>
+        <div class="worktree-scene">
+          <article class="desk human-desk">
+            <small>project/</small>
+            <strong>你的工作台</strong>
+            <span>main 分支</span>
+            <div class="desk-files"><i></i><i></i><i></i></div>
+          </article>
+          <div class="shared-repo">
+            <small>SHARED</small><b>同一个<br />Git 仓库</b><i></i><i></i>
+          </div>
+          <article class="desk ai-desk">
+            <small>project-ai/</small>
+            <strong>AI 的工作台</strong>
+            <span>feature/ai-tests 分支</span>
+            <div class="desk-files"><i></i><i></i><i></i></div>
+          </article>
+        </div>
+        <div class="worktree-memory"><b>Branch</b> 是不同时间线 <i>·</i> <b>Worktree</b> 是不同文件夹</div>
+        <div class="command-strip"><code>git worktree list</code><span>小白先会查看就足够</span></div>
+        <aside class="speaker-note">
+          建议用时 3 分钟。只讲概念：你可以在 project/ 继续修主线，AI 在 project-ai/ 写测试，两个目录共享同一仓库历史。不在这节课演示删除、修复、锁定或强制操作。
+
+          [Sources]
+          - https://git-scm.com/docs/git-worktree
+        </aside>
+      </section>
+
+      <section class="slide" data-title="AI 改代码，人负责看路" data-section="closing">
+        <div class="eyebrow">08 · SAFE AI WORKFLOW</div>
+        <h2>AI 负责加速，<br />人负责看路</h2>
+        <div class="safe-workflow">
+          <article><small>01</small><code>git status</code><b>确认现场</b></article>
+          <i>→</i>
+          <article><small>02</small><code>git switch -c</code><b>开试验分支</b></article>
+          <i>→</i>
+          <article class="ai-action"><small>03</small><code>AI 修改</code><b>明确边界</b></article>
+          <i>→</i>
+          <article><small>04</small><code>git diff</code><b>检查结果</b></article>
+          <i>→</i>
+          <article><small>05</small><code>git commit / push</code><b>审查后发布</b></article>
+        </div>
+        <div class="ai-prompts">
+          <p>“只检查 Git 状态，不要修改。”</p>
+          <p>“先创建独立分支，不要直接改 main。”</p>
+          <p>“总结当前 diff，按文件说明改动和风险。”</p>
+          <p>“推送前检查状态和测试，不要强制 push。”</p>
+        </div>
+        <aside class="speaker-note">
+          建议用时 6 分钟。强调“先看后改”：当 AI 建议 reset --hard、clean -fd 或 push --force 时，先问它会影响哪些文件、能否恢复、是否有更安全的方案。不把危险命令放进小白的主命令卡。
+        </aside>
+      </section>
+
+      <section class="slide closing-slide" data-title="现在你会怎么做" data-section="closing">
+        <div class="eyebrow">09 · 课堂挑战</div>
+        <h2>AI 要修改 README，<br />你的第一步是什么？（选择下面对的选项）</h2>
+        <div class="challenge" id="challenge">
+          <button type="button" data-correct="false"><span>A</span><b>直接让 AI 开始改</b><small>先动手，后面再说</small></button>
+          <button type="button" data-correct="true"><span>B</span><b>先检查 status 和当前分支</b><small>先看清现场</small></button>
+          <button type="button" data-correct="false"><span>C</span><b>先 push --force</b><small>把远程先“整理干净”</small></button>
+        </div>
+        <div class="challenge-result" id="challengeResult" aria-live="polite">选一个答案，看看你是不是已经会“先看路”。</div>
+        <div class="final-memory">
+          <span><b>Commit</b>本地存档</span>
+          <span><b>Push</b>上传同步</span>
+          <span><b>Branch</b>新时间线</span>
+          <span><b>Worktree</b>独立工作台</span>
+        </div>
+        <aside class="speaker-note">
+          建议用时 5‑8 分钟。先让学员投票，再点击揭晓。正确路线是：git status → 确认分支 → 必要时新建分支 → 让 AI 只改指定范围 → git diff → 测试 → commit → push。结尾不说“谢谢”，让学员用四句话复述本课。
+        </aside>
+      </section>
+
+      <div class="deck-chrome" aria-label="幻灯片控制">
+        <div class="progress-track"><span id="progressBar"></span></div>
+        <button id="prevSlide" type="button" aria-label="上一页">←</button>
+        <button id="openOverview" type="button" aria-label="打开目录">O</button>
+        <span id="slideCounter">1 / 10</span>
+        <button id="replayAnimation" type="button" aria-label="重播当前页动画">R</button>
+        <button id="toggleFullscreen" type="button" aria-label="全屏">F</button>
+        <button id="nextSlide" type="button" aria-label="下一页">→</button>
+      </div>
+    </main>
+
+    <dialog class="overview-dialog" id="overviewDialog">
+      <div class="overview-head">
+        <div><small>DECK MAP</small><h3>选择页面</h3></div>
+        <button id="closeOverview" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="overview-grid" id="overviewGrid"></div>
+    </dialog>
+
+    <aside class="notes-panel" id="notesPanel" aria-hidden="true">
+      <div><small>SPEAKER NOTES</small><button id="closeNotes" type="button" aria-label="关闭讲师备注">×</button></div>
+      <p id="notesContent"></p>
+    </aside>
+
+    <script src="app.js"></script>
+  </body>
+</html>

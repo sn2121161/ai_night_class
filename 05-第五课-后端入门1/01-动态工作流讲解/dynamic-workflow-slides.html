@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harness 101：复刻 Dynamic Workflow</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* ===========================================
+   FIXED 16:9 STAGE: MANDATORY BASE STYLES
+   =========================================== */
+html, body { width:100%; height:100%; margin:0; overflow:hidden; background:var(--stage-bg,#000); }
+.deck-viewport { position:fixed; inset:0; overflow:hidden; background:var(--stage-bg,#000); }
+.deck-stage { position:absolute; left:0; top:0; width:1920px; height:1080px; overflow:hidden; transform-origin:0 0; background:var(--slide-bg,#fff); }
+.slide { position:absolute; inset:0; width:1920px; height:1080px; overflow:hidden; display:block; visibility:hidden; opacity:0; pointer-events:none; background:var(--slide-bg,#fff); }
+.slide.active, .slide.visible { visibility:visible; opacity:1; pointer-events:auto; z-index:1; }
+img, video, canvas, svg { max-width:100%; max-height:100%; }
+.deck-controls { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:1000; }
+@media print {
+  html,body { width:1920px; height:auto; overflow:visible; background:#fff; }
+  .deck-viewport { position:static; overflow:visible; background:#fff; }
+  .deck-stage { position:static; width:auto; height:auto; transform:none !important; background:none; }
+  .slide { position:relative; display:block !important; visibility:visible !important; opacity:1 !important; pointer-events:auto !important; width:1920px; height:1080px; break-after:page; page-break-after:always; }
+  .slide:last-child { break-after:auto; page-break-after:auto; }
+  .deck-controls { display:none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,*::before,*::after { animation-duration:0.01ms !important; transition-duration:0.2s !important; }
+}
+
+/* ===========================================
+   ANT DESIGN THEME TOKENS
+   =========================================== */
+:root {
+  /* Ant Design 基础色板 */
+  --ant-primary: #1677ff;
+  --ant-primary-hover: #4096ff;
+  --ant-primary-active: #0958d9;
+  --ant-primary-bg: #e6f4ff;
+  --ant-primary-bg-hover: #bae0ff;
+  --ant-primary-border: #91caff;
+  --ant-success: #52c41a;
+  --ant-success-bg: #f6ffed;
+  --ant-success-border: #b7eb8f;
+  --ant-warning: #faad14;
+  --ant-warning-bg: #fffbe6;
+  --ant-warning-border: #ffe58f;
+  --ant-error: #ff4d4f;
+  --ant-error-bg: #fff2f0;
+  --ant-error-border: #ffccc7;
+  --ant-info: #1677ff;
+  --ant-info-bg: #e6f4ff;
+  --ant-info-border: #91caff;
+
+  /* 中性色 */
+  --ant-text: rgba(0,0,0,0.88);
+  --ant-text-secondary: rgba(0,0,0,0.65);
+  --ant-text-tertiary: rgba(0,0,0,0.45);
+  --ant-text-quaternary: rgba(0,0,0,0.25);
+  --ant-border: #d9d9d9;
+  --ant-border-secondary: #f0f0f0;
+  --ant-fill: rgba(0,0,0,0.15);
+  --ant-fill-secondary: rgba(0,0,0,0.06);
+  --ant-fill-tertiary: rgba(0,0,0,0.04);
+  --ant-fill-quaternary: rgba(0,0,0,0.02);
+  --ant-bg-container: #ffffff;
+  --ant-bg-elevated: #ffffff;
+  --ant-bg-layout: #f5f5f5;
+  --ant-bg-spotlight: rgba(0,0,0,0.85);
+  --ant-bg-mask: rgba(0,0,0,0.45);
+
+  /* 幻灯片舞台 */
+  --stage-bg: #f0f2f5;
+  --slide-bg: #ffffff;
+
+  /* 字体 */
+  --font-display: 'Noto Sans SC', -apple-system, 'Segoe UI', sans-serif;
+  --font-body: 'Noto Sans SC', -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+
+  /* 尺寸（1920×1080 舞台） */
+  --slide-padding-x: 96px;
+  --slide-padding-y: 72px;
+  --title-size: 96px;
+  --h2-size: 52px;
+  --h3-size: 36px;
+  --body-size: 26px;
+  --small-size: 22px;
+  --code-size: 21px;
+
+  /* 圆角与阴影 */
+  --ant-radius: 8px;
+  --ant-radius-lg: 12px;
+  --ant-shadow: 0 1px 2px 0 rgba(0,0,0,0.03), 0 1px 6px -1px rgba(0,0,0,0.02), 0 2px 4px 0 rgba(0,0,0,0.02);
+  --ant-shadow-secondary: 0 6px 16px 0 rgba(0,0,0,0.08), 0 3px 6px -4px rgba(0,0,0,0.12), 0 9px 28px 8px rgba(0,0,0,0.05);
+
+  /* 动效 */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-antd: cubic-bezier(0.645, 0.045, 0.355, 1);
+  --duration-normal: 0.5s;
+}
+
+/* ===========================================
+   BASE RESET & TYPOGRAPHY
+   =========================================== */
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: var(--font-body); color: var(--ant-text); -webkit-font-smoothing: antialiased; }
+
+.slide { padding: var(--slide-padding-y) var(--slide-padding-x); }
+
+/* ===========================================
+   REVEAL ANIMATIONS (Motion-style stagger)
+   =========================================== */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity var(--duration-normal) var(--ease-out-expo),
+              transform var(--duration-normal) var(--ease-out-expo);
+}
+.slide.visible .reveal { opacity: 1; transform: translateY(0); }
+.reveal[data-delay="1"] { transition-delay: 0.08s; }
+.reveal[data-delay="2"] { transition-delay: 0.16s; }
+.reveal[data-delay="3"] { transition-delay: 0.24s; }
+.reveal[data-delay="4"] { transition-delay: 0.32s; }
+.reveal[data-delay="5"] { transition-delay: 0.40s; }
+.reveal[data-delay="6"] { transition-delay: 0.48s; }
+.reveal[data-delay="7"] { transition-delay: 0.56s; }
+.reveal[data-delay="8"] { transition-delay: 0.64s; }
+
+/* ===========================================
+   TITLE SLIDE (P1)
+   =========================================== */
+.title-slide {
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  text-align: center; background: linear-gradient(135deg, #f0f5ff 0%, #ffffff 50%, #f6ffed 100%);
+  position: relative;
+}
+.title-slide::before {
+  content:''; position:absolute; inset:0;
+  background-image: radial-gradient(circle at 20% 30%, rgba(22,119,255,0.06) 0%, transparent 40%),
+                    radial-gradient(circle at 80% 70%, rgba(82,196,26,0.05) 0%, transparent 40%);
+  pointer-events:none;
+}
+.title-badge {
+  display:inline-flex; align-items:center; gap:10px;
+  background: var(--ant-primary-bg); border: 1px solid var(--ant-primary-border);
+  color: var(--ant-primary); font-size: 24px; font-weight: 500;
+  padding: 10px 24px; border-radius: 999px; margin-bottom: 36px;
+}
+.title-badge .dot { width:10px; height:10px; border-radius:50%; background: var(--ant-primary); }
+.title-slide h1 {
+  font-family: var(--font-display); font-size: var(--title-size); font-weight: 900;
+  line-height: 1.15; letter-spacing: -1px; margin-bottom: 28px; color: var(--ant-text);
+}
+.title-slide h1 .accent { color: var(--ant-primary); }
+.title-slide .subtitle {
+  font-size: 34px; color: var(--ant-text-secondary); font-weight: 400;
+  max-width: 1200px; line-height: 1.5; margin-bottom: 48px;
+}
+.title-meta {
+  display:flex; gap:40px; font-size:24px; color: var(--ant-text-tertiary);
+}
+.title-meta span { display:flex; align-items:center; gap:8px; }
+
+/* ===========================================
+   SLIDE HEADER / FOOTER
+   =========================================== */
+.slide-header { margin-bottom: 40px; }
+.slide-kicker {
+  display:inline-block; font-size:22px; font-weight:500; color: var(--ant-primary);
+  background: var(--ant-primary-bg); padding:6px 16px; border-radius:6px; margin-bottom:16px;
+  border: 1px solid var(--ant-primary-border);
+}
+.slide-header h2 {
+  font-family: var(--font-display); font-size: var(--h2-size); font-weight: 700;
+  line-height:1.2; color: var(--ant-text);
+}
+.slide-footer {
+  position:absolute; bottom:32px; left:var(--slide-padding-x); right:var(--slide-padding-x);
+  display:flex; justify-content:space-between; align-items:center;
+  font-size:20px; color: var(--ant-text-quaternary);
+}
+.page-num { font-weight:500; color: var(--ant-text-tertiary); }
+
+/* ===========================================
+   COMPARISON CARDS (P2)
+   =========================================== */
+.compare-grid {
+  display:grid; grid-template-columns: 1fr 1fr 1fr; gap:28px; margin-top:20px;
+}
+.compare-card {
+  background: var(--ant-bg-container); border:1px solid var(--ant-border-secondary);
+  border-radius: var(--ant-radius-lg); padding:32px 28px; box-shadow: var(--ant-shadow);
+  display:flex; flex-direction:column; position:relative; overflow:hidden;
+  transition: transform 0.3s var(--ease-antd), box-shadow 0.3s var(--ease-antd);
+}
+.compare-card:hover { transform: translateY(-4px); box-shadow: var(--ant-shadow-secondary); }
+.compare-card::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:4px;
+  background: var(--ant-primary);
+}
+.compare-card.card-static::before { background: var(--ant-warning); }
+.compare-card.card-skill::before { background: var(--ant-info); }
+.compare-card.card-dynamic::before { background: var(--ant-success); }
+.card-tag {
+  display:inline-block; font-size:20px; font-weight:500; padding:4px 12px; border-radius:4px;
+  margin-bottom:16px; width:fit-content;
+}
+.card-static .card-tag { background: var(--ant-warning-bg); color:#d48806; border:1px solid var(--ant-warning-border); }
+.card-skill .card-tag { background: var(--ant-info-bg); color: var(--ant-primary); border:1px solid var(--ant-info-border); }
+.card-dynamic .card-tag { background: var(--ant-success-bg); color:#389e0d; border:1px solid var(--ant-success-border); }
+.compare-card h3 { font-size:32px; font-weight:700; margin-bottom:12px; color: var(--ant-text); }
+.compare-card .card-desc { font-size:22px; color: var(--ant-text-secondary); line-height:1.6; margin-bottom:20px; flex:1; }
+.card-list { list-style:none; }
+.card-list li {
+  font-size:21px; color: var(--ant-text-secondary); padding:8px 0 8px 28px; position:relative; line-height:1.5;
+}
+.card-list li::before {
+  content:''; position:absolute; left:0; top:16px; width:14px; height:14px;
+  border-radius:3px; background: var(--ant-fill-secondary);
+}
+.card-static .card-list li::before { background: var(--ant-warning-border); }
+.card-skill .card-list li::before { background: var(--ant-info-border); }
+.card-dynamic .card-list li::before { background: var(--ant-success-border); }
+
+.evolution-strip {
+  margin-top:36px; padding:24px 32px; background: var(--ant-fill-quaternary);
+  border:1px solid var(--ant-border-secondary); border-radius: var(--ant-radius);
+  display:flex; align-items:center; justify-content:space-between; gap:24px;
+}
+.evolution-strip .evo-item { display:flex; align-items:center; gap:12px; font-size:22px; color: var(--ant-text-secondary); }
+.evolution-strip .evo-arrow { color: var(--ant-text-quaternary); font-size:28px; }
+.evolution-strip .evo-item strong { color: var(--ant-text); font-weight:600; }
+
+/* ===========================================
+   CODE SLIDE (P3)
+   =========================================== */
+.code-layout { display:grid; grid-template-columns: 1.05fr 0.95fr; gap:36px; height: calc(100% - 180px); }
+.code-panel {
+  background:#0d1117; border-radius: var(--ant-radius-lg); padding:28px 32px;
+  overflow:hidden; display:flex; flex-direction:column; box-shadow: var(--ant-shadow-secondary);
+  margin-bottom:20px;
+}
+.code-panel-header {
+  display:flex; align-items:center; gap:12px; margin-bottom:20px; padding-bottom:16px;
+  border-bottom:1px solid rgba(255,255,255,0.08);
+}
+.code-panel-header .mac-dot { width:16px; height:16px; border-radius:50%; }
+.code-panel-header .mac-dot.r { background:#ff5f57; } .code-panel-header .mac-dot.y { background:#febc2e; } .code-panel-header .mac-dot.g { background:#28c840; }
+.code-panel-header .code-title { margin-left:auto; font-family: var(--font-mono); font-size:20px; color:#8b949e; }
+.code-panel pre {
+  font-family: var(--font-mono); font-size: var(--code-size); line-height:1.55;
+  color:#c9d1d9; overflow:auto; flex:1;
+}
+.code-panel pre .c-kw { color:#ff7b72; }   /* keyword */
+.code-panel pre .c-str { color:#a5d6ff; }   /* string */
+.code-panel pre .c-fn { color:#d2a8ff; }    /* function */
+.code-panel pre .c-cm { color:#8b949e; font-style:italic; } /* comment */
+.code-panel pre .c-num { color:#79c0ff; }
+
+.code-notes { display:flex; flex-direction:column; gap:20px; }
+.note-card {
+  background: var(--ant-bg-container); border:1px solid var(--ant-border-secondary);
+  border-radius: var(--ant-radius); padding:24px 28px; box-shadow: var(--ant-shadow);
+}
+.note-card .note-head { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+.note-card .note-icon {
+  width:40px; height:40px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+  font-size:20px; font-weight:700; color:#fff;
+}
+.note-card.n1 .note-icon { background: var(--ant-primary); }
+.note-card.n2 .note-icon { background: var(--ant-success); }
+.note-card.n3 .note-icon { background: var(--ant-warning); }
+.note-card h4 { font-size:26px; font-weight:600; color: var(--ant-text); }
+.note-card p { font-size:21px; color: var(--ant-text-secondary); line-height:1.55; }
+.note-card code {
+  font-family: var(--font-mono); background: var(--ant-fill-tertiary); padding:2px 8px;
+  border-radius:4px; font-size:19px; color: var(--ant-primary);
+}
+
+/* ===========================================
+   TRANSITION SLIDE (P4)
+   =========================================== */
+.transition-slide {
+  display:flex; flex-direction:column; justify-content:flex-start; align-items:stretch;
+  background: linear-gradient(135deg, #f6ffed 0%, #ffffff 50%, #f0f5ff 100%);
+  position:relative;
+}
+.transition-slide::before {
+  content:''; position:absolute; inset:0;
+  background-image: radial-gradient(circle at 30% 20%, rgba(82,196,26,0.05) 0%, transparent 35%),
+                    radial-gradient(circle at 70% 80%, rgba(22,119,255,0.05) 0%, transparent 35%);
+  pointer-events:none;
+}
+.transition-slide .slide-header { position:relative; z-index:1; margin-bottom:28px; }
+.transition-badge {
+  display:inline-flex; align-items:center; gap:10px;
+  background: var(--ant-success-bg); border:1px solid var(--ant-success-border);
+  color:#389e0d; font-size:22px; font-weight:500; padding:8px 20px; border-radius:999px;
+}
+.trans-sub {
+  font-size:26px; color: var(--ant-text-secondary); max-width:1400px; line-height:1.6;
+  margin-bottom:32px; position:relative; z-index:1;
+}
+.trans-sub strong { color: var(--ant-text); }
+
+.trans-cards {
+  display:grid; grid-template-columns: repeat(4, 1fr); gap:24px; margin-bottom:32px;
+  width:100%; position:relative; z-index:1;
+}
+.trans-card {
+  background: var(--ant-bg-container); border:1px solid var(--ant-border-secondary);
+  border-radius: var(--ant-radius-lg); padding:32px 26px; box-shadow: var(--ant-shadow);
+  text-align:left; position:relative; overflow:hidden;
+}
+.trans-card::after {
+  content:''; position:absolute; top:0; left:0; right:0; height:4px; background: var(--ant-primary);
+}
+.trans-card:nth-child(2)::after { background: var(--ant-success); }
+.trans-card:nth-child(3)::after { background: var(--ant-warning); }
+.trans-card:nth-child(4)::after { background:#722ed1; }
+.trans-card .tc-icon {
+  width:56px; height:56px; border-radius:14px; display:flex; align-items:center; justify-content:center;
+  font-size:28px; margin-bottom:18px;
+}
+.trans-card h4 { font-size:26px; font-weight:700; margin-bottom:10px; color: var(--ant-text); }
+.trans-card p { font-size:20px; color: var(--ant-text-secondary); line-height:1.55; }
+
+.trans-question {
+  background: var(--ant-bg-container); border:1px solid var(--ant-border-secondary);
+  border-radius: var(--ant-radius-lg); padding:32px 40px; box-shadow: var(--ant-shadow);
+  width:100%; position:relative; z-index:1;
+}
+.trans-question .tq-label {
+  display:inline-block; font-size:20px; font-weight:600; color: var(--ant-primary);
+  background: var(--ant-primary-bg); padding:4px 14px; border-radius:6px; margin-bottom:16px;
+}
+.trans-question .tq-text {
+  font-size:34px; font-weight:700; color: var(--ant-text); margin-bottom:20px; line-height:1.4;
+}
+.trans-question .tq-answer {
+  display:grid; grid-template-columns:1fr 1fr; gap:24px;
+  padding-top:20px; border-top:1px solid var(--ant-border-secondary);
+}
+.tq-option {
+  display:flex; align-items:center; gap:14px; padding:18px 22px;
+  border-radius: var(--ant-radius); font-size:22px; line-height:1.5;
+}
+.tq-option.yes { background: var(--ant-primary-bg); border:1px solid var(--ant-primary-border); color: var(--ant-primary); }
+.tq-option.no { background: var(--ant-success-bg); border:1px solid var(--ant-success-border); color:#389e0d; }
+.tq-option .tq-arrow { font-size:26px; font-weight:700; flex-shrink:0; }
+.tq-option strong { font-weight:700; }
+
+/* ===========================================
+   PARALLEL VS PIPELINE (P5)
+   =========================================== */
+.vs-layout { display:grid; grid-template-columns:1fr 1fr; gap:32px; margin-top:16px; }
+.vs-panel {
+  border:1px solid var(--ant-border-secondary); border-radius: var(--ant-radius-lg);
+  overflow:hidden; background: var(--ant-bg-container); box-shadow: var(--ant-shadow);
+  display:flex; flex-direction:column;
+}
+.vs-panel-header {
+  padding:20px 28px; font-size:30px; font-weight:700; display:flex; align-items:center; gap:14px;
+  flex-shrink:0;
+}
+.vs-panel-header .vs-icon { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:22px; color:#fff; }
+.vs-parallel .vs-panel-header { background: var(--ant-primary-bg); color: var(--ant-primary); border-bottom:2px solid var(--ant-primary-border); }
+.vs-parallel .vs-icon { background: var(--ant-primary); }
+.vs-pipeline .vs-panel-header { background: var(--ant-success-bg); color:#389e0d; border-bottom:2px solid var(--ant-success-border); }
+.vs-pipeline .vs-icon { background: var(--ant-success); }
+.vs-panel-body { padding:24px 28px; display:flex; flex-direction:column; flex:1; }
+.vs-panel-body .vs-desc { font-size:22px; color: var(--ant-text-secondary); line-height:1.6; margin-bottom:20px; flex-shrink:0; }
+
+/* 流程图（替代代码） */
+.flow-diagram {
+  background: var(--ant-fill-quaternary); border:1px solid var(--ant-border-secondary);
+  border-radius: var(--ant-radius); padding:20px 24px; margin-bottom:20px;
+  flex:1; display:flex; flex-direction:column; justify-content:center;
+}
+.flow-diagram-title {
+  font-size:18px; color: var(--ant-text-tertiary); margin-bottom:14px; font-weight:500;
+}
+.parallel-branches { display:flex; flex-direction:column; gap:12px; }
+.parallel-branch {
+  display:flex; align-items:center; gap:12px;
+}
+.branch-task {
+  flex:1; background: var(--ant-bg-container); border:1px solid var(--ant-border);
+  border-radius:6px; padding:12px 16px; font-size:20px; font-weight:500;
+  color: var(--ant-text); text-align:center;
+}
+.branch-barrier {
+  width:4px; height:40px; background: var(--ant-primary); border-radius:2px;
+}
+.barrier-line {
+  margin-top:12px; padding-top:12px; border-top:2px dashed var(--ant-primary);
+  text-align:center; font-size:18px; color: var(--ant-primary); font-weight:500;
+}
+
+.pipeline-track { display:flex; align-items:center; gap:8px; overflow-x:auto; padding-bottom:8px; }
+.pipeline-item {
+  flex-shrink:0; background: var(--ant-bg-container); border:1px solid var(--ant-border);
+  border-radius:6px; padding:10px 14px; font-size:19px; font-weight:500;
+  color: var(--ant-text); text-align:center; min-width:100px;
+}
+.pipeline-item.done { background: var(--ant-success-bg); border-color: var(--ant-success-border); color:#389e0d; }
+.pipeline-item.doing { background: var(--ant-primary-bg); border-color: var(--ant-primary-border); color: var(--ant-primary); }
+.pipeline-item.waiting { background: var(--ant-fill-tertiary); color: var(--ant-text-tertiary); }
+.pipeline-arrow { color: var(--ant-text-quaternary); font-size:20px; flex-shrink:0; }
+
+.vs-scenario {
+  margin-top:auto; padding:16px 20px; background: var(--ant-fill-quaternary);
+  border-left:4px solid var(--ant-primary); border-radius:0 8px 8px 0;
+  font-size:20px; color: var(--ant-text-secondary); line-height:1.5;
+  flex-shrink:0;
+}
+.vs-pipeline .vs-scenario { border-left-color: var(--ant-success); }
+.vs-scenario .scenario-title {
+  display:block; font-size:20px; font-weight:700; color: var(--ant-text);
+  margin-bottom:8px;
+}
+.vs-scenario .scenario-text {
+  display:block; font-size:20px; color: var(--ant-text-secondary); line-height:1.55;
+}
+
+.barrier-note {
+  margin-top:28px; padding:20px 28px; background: var(--ant-warning-bg);
+  border:1px solid var(--ant-warning-border); border-radius: var(--ant-radius);
+  display:flex; align-items:flex-start; gap:14px; font-size:21px; color:#614700; line-height:1.55;
+}
+.barrier-note .b-icon { font-size:26px; line-height:1; }
+
+/* ===========================================
+   TABLE SLIDE (P5)
+   =========================================== */
+.table-wrap {
+  background: var(--ant-bg-container); border:1px solid var(--ant-border-secondary);
+  border-radius: var(--ant-radius-lg); overflow:hidden; box-shadow: var(--ant-shadow);
+  margin-top:16px;
+}
+.boundary-table { width:100%; border-collapse:collapse; font-size:22px; }
+.boundary-table thead th {
+  background: var(--ant-fill-quaternary); padding:18px 24px; text-align:left;
+  font-size:22px; font-weight:600; color: var(--ant-text); border-bottom:1px solid var(--ant-border-secondary);
+}
+.boundary-table tbody td {
+  padding:18px 24px; border-bottom:1px solid var(--ant-border-secondary);
+  color: var(--ant-text-secondary); line-height:1.5; vertical-align:top;
+}
+.boundary-table tbody tr:last-child td { border-bottom:none; }
+.boundary-table tbody tr:hover { background: var(--ant-primary-bg); }
+.boundary-table .cell-work { font-weight:500; color: var(--ant-text); }
+.tag-js, .tag-agent {
+  display:inline-block; padding:3px 12px; border-radius:4px; font-size:18px; font-weight:600;
+}
+.tag-js { background:#f0f5ff; color:#2f54eb; border:1px solid #d6e4ff; }
+.tag-agent { background:#fff7e6; color:#d46b08; border:1px solid #ffd591; }
+
+.table-footer-note {
+  margin-top:24px; font-size:21px; color: var(--ant-text-tertiary); line-height:1.5;
+  display:flex; align-items:center; gap:10px;
+}
+.table-footer-note::before { content:''; width:6px; height:24px; background: var(--ant-primary); border-radius:3px; }
+
+/* ===========================================
+   PRACTICE SLIDE (P7)
+   =========================================== */
+.practice-layout { display:grid; grid-template-columns: 1fr 1fr; gap:36px; height: calc(100% - 140px); }
+.practice-steps { display:flex; flex-direction:column; gap:18px; }
+.step-item {
+  display:flex; gap:18px; align-items:flex-start; background: var(--ant-bg-container);
+  border:1px solid var(--ant-border-secondary); border-radius: var(--ant-radius);
+  padding:22px 24px; box-shadow: var(--ant-shadow);
+}
+.step-num {
+  width:44px; height:44px; border-radius:50%; background: var(--ant-primary);
+  color:#fff; font-size:22px; font-weight:700; display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+}
+.step-item:nth-child(2) .step-num { background: var(--ant-success); }
+.step-item:nth-child(3) .step-num { background: var(--ant-warning); }
+.step-item:nth-child(4) .step-num { background:#722ed1; }
+.step-content h4 { font-size:26px; font-weight:600; margin-bottom:8px; color: var(--ant-text); }
+.step-content p { font-size:20px; color: var(--ant-text-secondary); line-height:1.5; }
+.step-content code {
+  font-family: var(--font-mono); background: var(--ant-fill-tertiary); padding:2px 8px;
+  border-radius:4px; font-size:18px; color: var(--ant-primary);
+}
+
+.practice-visual {
+  display:flex; flex-direction:column; gap:20px;
+}
+.skill-flow-card {
+  background: var(--ant-bg-container); border:1px solid var(--ant-border-secondary);
+  border-radius: var(--ant-radius-lg); padding:28px; box-shadow: var(--ant-shadow);
+}
+.skill-flow-card h3 { font-size:28px; font-weight:700; margin-bottom:20px; color: var(--ant-text); }
+.skill-flow-steps { display:flex; flex-direction:column; gap:14px; }
+.skill-flow-step {
+  display:flex; align-items:center; gap:14px; padding:14px 18px;
+  background: var(--ant-fill-quaternary); border-radius: var(--ant-radius);
+  border:1px solid var(--ant-border-secondary);
+}
+.skill-flow-step .sf-icon {
+  width:40px; height:40px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+  font-size:20px; font-weight:700; color:#fff; flex-shrink:0;
+}
+.skill-flow-step:nth-child(1) .sf-icon { background: var(--ant-primary); }
+.skill-flow-step:nth-child(2) .sf-icon { background: var(--ant-success); }
+.skill-flow-step:nth-child(3) .sf-icon { background: var(--ant-warning); }
+.skill-flow-step:nth-child(4) .sf-icon { background:#722ed1; }
+.skill-flow-step .sf-text { font-size:21px; color: var(--ant-text); font-weight:500; }
+.skill-flow-step .sf-sub { font-size:18px; color: var(--ant-text-tertiary); margin-top:2px; }
+
+.cmd-card {
+  background:#0d1117; border-radius: var(--ant-radius-lg); padding:24px 28px;
+  box-shadow: var(--ant-shadow-secondary);
+}
+.cmd-card .cmd-title { font-family: var(--font-mono); font-size:18px; color:#8b949e; margin-bottom:14px; }
+.cmd-line {
+  font-family: var(--font-mono); font-size:20px; color:#c9d1d9; padding:10px 0;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+}
+.cmd-line:last-child { border-bottom:none; }
+.cmd-line .cmd-prompt { color:#58a6ff; }
+.cmd-line .cmd-cmd { color:#c9d1d9; }
+.cmd-line .cmd-flag { color:#d2a8ff; }
+.cmd-line .cmd-arg { color:#a5d6ff; }
+
+/* ===========================================
+   DEEP RESEARCH DEMO SLIDE (P8)
+   =========================================== */
+.demo-layout { display:grid; grid-template-columns: 1fr 1fr; gap:32px; height: calc(100% - 180px); }
+.demo-panel {
+  background: var(--ant-bg-container); border:1px solid var(--ant-border-secondary);
+  border-radius: var(--ant-radius-lg); box-shadow: var(--ant-shadow);
+  display:flex; flex-direction:column; overflow:hidden;
+}
+.demo-panel-header {
+  padding:18px 24px; border-bottom:1px solid var(--ant-border-secondary);
+  display:flex; align-items:center; gap:12px; flex-shrink:0;
+}
+.demo-panel-header .dp-icon {
+  width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center;
+  font-size:20px; color:#fff; flex-shrink:0;
+}
+.demo-panel.p1 .dp-icon { background: var(--ant-primary); }
+.demo-panel.p2 .dp-icon { background: var(--ant-success); }
+.demo-panel-header h3 { font-size:26px; font-weight:700; color: var(--ant-text); }
+.demo-panel-header .dp-sub { font-size:18px; color: var(--ant-text-tertiary); margin-left:auto; }
+.demo-panel-body { padding:20px 24px; flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.demo-img-wrap {
+  flex:1; display:flex; align-items:center; justify-content:center;
+  background: var(--ant-fill-quaternary); border-radius: var(--ant-radius);
+  border:1px solid var(--ant-border-secondary); overflow:hidden; min-height:0;
+}
+.demo-img-wrap img {
+  max-width:100%; max-height:100%; object-fit:contain; display:block;
+  border-radius:4px;
+}
+.demo-caption {
+  margin-top:14px; font-size:19px; color: var(--ant-text-secondary); line-height:1.5;
+  flex-shrink:0;
+}
+.demo-caption strong { color: var(--ant-text); }
+.demo-caption code {
+  font-family: var(--font-mono); background: var(--ant-fill-tertiary); padding:2px 8px;
+  border-radius:4px; font-size:17px; color: var(--ant-primary);
+}
+
+/* ===========================================
+   PROGRESS & CONTROLS (右侧垂直边栏)
+   =========================================== */
+.deck-controls {
+  display:flex; flex-direction:column; align-items:center; gap:14px;
+  background: rgba(255,255,255,0.92); backdrop-filter: blur(8px);
+  padding:20px 12px; border-radius:999px;
+  box-shadow: var(--ant-shadow-secondary); border:1px solid var(--ant-border-secondary);
+  font-size:20px; color: var(--ant-text-secondary);
+  position:fixed; right:20px; top:50%; transform:translateY(-50%);
+  left:auto; bottom:auto; z-index:1000;
+}
+.deck-controls button {
+  border:none; background: var(--ant-primary); color:#fff; width:40px; height:40px;
+  border-radius:50%; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center;
+  transition: background 0.2s;
+}
+.deck-controls button:hover { background: var(--ant-primary-hover); }
+.progress-dots { display:flex; flex-direction:column; gap:10px; align-items:center; }
+.progress-dots .dot {
+  width:10px; height:10px; border-radius:50%; background: var(--ant-border); cursor:pointer;
+  transition: all 0.25s var(--ease-antd);
+}
+.progress-dots .dot.active { background: var(--ant-primary); transform: scale(1.3); }
+
+/* ===========================================
+   INLINE EDIT
+   =========================================== */
+.edit-hotzone { position:fixed; top:0; left:0; width:80px; height:80px; z-index:10000; cursor:pointer; }
+.edit-toggle {
+  position:fixed; top:16px; left:16px; width:48px; height:48px; border-radius:50%;
+  background: var(--ant-primary); color:#fff; border:none; font-size:22px; cursor:pointer;
+  opacity:0; pointer-events:none; transition: opacity 0.3s ease; z-index:10001;
+  box-shadow: var(--ant-shadow-secondary);
+}
+.edit-toggle.show, .edit-toggle.active { opacity:1; pointer-events:auto; }
+.editing .slide { outline: 2px dashed var(--ant-primary); outline-offset:-2px; }
+[contenteditable="true"]:focus { outline: 2px solid var(--ant-primary); border-radius:4px; }
+
+/* ===========================================
+   SCROLLBAR for code panels
+   =========================================== */
+.code-panel pre::-webkit-scrollbar { width:8px; height:8px; }
+.code-panel pre::-webkit-scrollbar-thumb { background:#30363d; border-radius:4px; }
+.code-panel pre::-webkit-scrollbar-track { background:transparent; }
+</style>
+</head>
+<body>
+
+<div class="edit-hotzone"></div>
+<button class="edit-toggle" id="editToggle" title="编辑模式 (E)">✏️</button>
+
+<div class="deck-viewport">
+<main class="deck-stage" id="deckStage">
+
+<!-- ==================== P1 封面 ==================== -->
+<section class="slide title-slide active">
+  <div class="title-badge reveal"><span class="dot"></span>Harness 101 系列</div>
+  <h1 class="reveal" data-delay="1"><span class="accent">Dynamic Workflow</span> 概述</h1>
+  <p class="subtitle reveal" data-delay="2">程序的稳定性和 Agent 的主观能动性，如何结合<br>从静态工作流，到模型临时生成动态编排</p>
+  <!-- <div class="title-meta reveal" data-delay="3">
+    <span>📄 含代码实战</span>
+    <span>🦌 DeerFlow 开源</span>
+    <span>📅 8月6日修改</span>
+  </div> -->
+  <div class="slide-footer">
+    <span>Harness 101：复刻 Dynamic Workflow</span>
+    <span class="page-num">1 / 8</span>
+  </div>
+</section>
+
+<!-- ==================== P2 Dynamic Workflow 由来与区别 ==================== -->
+<section class="slide">
+  <div class="slide-header">
+    <span class="slide-kicker reveal">概念演进</span>
+    <h2 class="reveal" data-delay="1">Dynamic Workflow 是怎么来的？</h2>
+  </div>
+
+  <div class="compare-grid">
+    <div class="compare-card card-static reveal" data-delay="2">
+      <span class="card-tag">Static Workflow</span>
+      <h3>Dify / Coze / N8N</h3>
+      <p class="card-desc">可视化工作流：把 Prompt、知识库、流程拖进画布，用连线决定顺序。确定性高，但前提是开发者提前知道任务会怎么走。</p>
+      <ul class="card-list">
+        <li>预先设计通用流程</li>
+        <li>适合客服分流、表单处理</li>
+        <li>开放任务分支无法穷举</li>
+      </ul>
+    </div>
+
+    <div class="compare-card card-skill reveal" data-delay="3">
+      <span class="card-tag">Agent + Skill</span>
+      <h3>Skill 驱动</h3>
+      <p class="card-desc">领域知识写进 SKILL.md，Agent 按需加载。门槛低、可自我进化，但固定步骤仍要反复经过模型逐轮判断。</p>
+      <ul class="card-list">
+        <li>上下文驱动、渐进加载</li>
+        <li>机械流程写在自然语言里</li>
+        <li>改进只能调 Prompt，难验证</li>
+      </ul>
+    </div>
+
+    <div class="compare-card card-dynamic reveal" data-delay="4">
+      <span class="card-tag">Dynamic Workflow</span>
+      <h3>模型临时写 Harness</h3>
+      <p class="card-desc">模型针对当前任务临时生成 JavaScript 编排：判断留给 Agent，循环、并发、聚合、停止条件交还给代码。</p>
+      <ul class="card-list">
+        <li>为这次任务生成专用编排</li>
+        <li>机械控制流用 JS 承载</li>
+        <li>可测试、可迭代</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="evolution-strip reveal" data-delay="5">
+    <div class="evo-item"><strong>2023–2024</strong> 流程画布</div>
+    <span class="evo-arrow">→</span>
+    <div class="evo-item"><strong>2025–2026</strong> ReAct Loop</div>
+    <span class="evo-arrow">→</span>
+    <div class="evo-item"><strong>Dynamic Workflow</strong> 代码 + Agent 分工</div>
+  </div>
+
+  <div class="slide-footer">
+    <span>核心区别：编排产生的时机与稳定性来源</span>
+    <span class="page-num">2 / 8</span>
+  </div>
+</section>
+
+<!-- ==================== P3 合同审核案例代码 ==================== -->
+<section class="slide">
+  <div class="slide-header">
+    <span class="slide-kicker reveal">案例代码</span>
+    <h2 class="reveal" data-delay="1">合同审核：一个 Dynamic Workflow 案例</h2>
+  </div>
+
+  <div class="code-layout">
+    <div class="code-panel reveal" data-delay="2">
+      <div class="code-panel-header">
+        <span class="mac-dot r"></span><span class="mac-dot y"></span><span class="mac-dot g"></span>
+        <span class="code-title">review-contract.js</span>
+      </div>
+      <pre><span class="c-kw">export const</span> meta = {
+  name: <span class="c-str">'review-contract'</span>,
+  description: <span class="c-str">'检查合同中的关键条款并汇总风险'</span>,
+  phases: [
+    { title: <span class="c-str">'Quick Search'</span> },
+    { title: <span class="c-str">'Plan'</span> },
+    { title: <span class="c-str">'Research'</span> },
+    { title: <span class="c-str">'Draft'</span> },
+    { title: <span class="c-str">'Review'</span> },
+    { title: <span class="c-str">'Finalize'</span> },
+  ]
+}
+
+<span class="c-kw">const</span> target = args?.file
+
+<span class="c-cm">// 唯一与 AI 有关的 API：启动一个 ReAct Loop</span>
+<span class="c-kw">const</span> { clauses } = <span class="c-kw">await</span> <span class="c-fn">agent</span>(<span class="c-str">`读取 ${target}，列出关键条款。`</span>, {
+  schema: {
+    type: <span class="c-str">'object'</span>,
+    required: [<span class="c-str">'clauses'</span>],
+    properties: {
+      clauses: { type: <span class="c-str">'array'</span>, items: { type: <span class="c-str">'string'</span> } },
+    },
+  },
+})
+
+<span class="c-cm">// 每条条款独立流过判断 stage，无需等待其他条款</span>
+<span class="c-kw">const</span> reviews = <span class="c-kw">await</span> <span class="c-fn">pipeline</span>(clauses, clause =>
+  <span class="c-fn">agent</span>(<span class="c-str">`判断这项条款的风险：${clause}`</span>)
+)
+
+<span class="c-kw">return</span> reviews</pre>
+    </div>
+
+    <div class="code-notes">
+      <div class="note-card n1 reveal" data-delay="3">
+        <div class="note-head"><span class="note-icon">M</span><h4>meta 静态声明</h4></div>
+        <p>类似 Skill 的 name + description出现在上下文中，Runtime 在执行前读取，生成名称、说明和进度分组。变量引用、函数调用不适合放进 <code>meta</code>。</p>
+      </div>
+      <div class="note-card n2 reveal" data-delay="4">
+        <div class="note-head"><span class="note-icon">A</span><h4>agent() 是 ReAct Loop</h4></div>
+        <p>不是一次 Prompt 调用，而是启动拥有独立 Context 和工具能力的 Sub-Agent，可读写文件、运行命令，返回最终结果。</p>
+      </div>
+      <div class="note-card n3 reveal" data-delay="5">
+        <div class="note-head"><span class="note-icon">P</span><h4>pipeline 逐项前进</h4></div>
+        <p>每条条款完成后都会进入风险判断，不必等全部条款提取完毕。机械调度由 JS 保证，语义判断留给 Agent。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <span>JavaScript 负责机械控制流，agent() 负责语义判断</span>
+    <span class="page-num">3 / 8</span>
+  </div>
+</section>
+
+<!-- ==================== P4 过渡页：为什么需要调度？ ==================== -->
+<section class="slide">
+  <div class="slide-header">
+    <span class="slide-kicker reveal">具体分析</span>
+    <h2 class="reveal" data-delay="1">分工之后，<span class="accent">调度</span>如何发生？</h2>
+  </div>
+
+  <p class="trans-sub reveal" data-delay="2">JavaScript 接管了机械控制流，<strong>agent()</strong> 接管了语义判断。但真实任务往往同时包含多个子任务——它们之间，谁先谁后、谁等谁？</p>
+
+  <div class="trans-cards reveal" data-delay="3">
+    <div class="trans-card">
+      <div class="tc-icon" style="background:var(--ant-primary-bg); color:var(--ant-primary);">📋</div>
+      <h4>任务拆解</h4>
+      <p>一份合同要拆成主体、金额、期限、违约责任、争议解决五类条款，每类条款是一个独立 item。</p>
+    </div>
+    <div class="trans-card">
+      <div class="tc-icon" style="background:var(--ant-success-bg); color:#389e0d;">⚖️</div>
+      <h4>判断边界</h4>
+      <p>「是否遍历全部条款」由 JS 保证；「条款是否有风险」由 Agent 判断。分工是调度的前提。</p>
+    </div>
+    <div class="trans-card">
+      <div class="tc-icon" style="background:var(--ant-warning-bg); color:#d48806;">🔀</div>
+      <h4>并发调度</h4>
+      <p>五类条款可以同时提取，但汇总风险前必须等齐；每条条款的风险判断却可以独立推进。</p>
+    </div>
+    <div class="trans-card">
+      <div class="tc-icon" style="background:#f9f0ff; color:#722ed1;">📦</div>
+      <h4>结果聚合</h4>
+      <p>JavaScript 去重、排序、合并结构化结果，最终输出一份风险报告供人审阅。</p>
+    </div>
+  </div>
+
+  <div class="trans-question reveal" data-delay="4">
+    <div class="tq-label">核心问题</div>
+    <div class="tq-text">「下一步是否需要前一阶段所有 item 的共同上下文？」</div>
+    <div class="tq-answer">
+      <div class="tq-option yes">
+        <span class="tq-arrow">是</span>
+        <div><strong>用 parallel() 等齐</strong>——汇总、排名、跨项判断前，必须看到全体结果</div>
+      </div>
+      <div class="tq-option no">
+        <span class="tq-arrow">否</span>
+        <div><strong>用 pipeline() 让每个 item 自己向前</strong>——逐项转换、审查、修复，互不等待</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <span>从「谁做什么」到「怎么同时做」</span>
+    <span class="page-num">4 / 8</span>
+  </div>
+</section>
+
+<!-- ==================== P5 Parallel vs Pipeline（图示版） ==================== -->
+<section class="slide">
+  <div class="slide-header">
+    <span class="slide-kicker reveal">两种 API 形式</span>
+    <h2 class="reveal" data-delay="1">Parallel 与 Pipeline：Barrier（屏障）在哪里？</h2>
+  </div>
+
+  <div class="vs-layout">
+    <div class="vs-panel vs-parallel reveal" data-delay="2">
+      <div class="vs-panel-header"><span class="vs-icon">∥</span>Parallel：下一步需要看见全体结果</div>
+      <div class="vs-panel-body">
+        <p class="vs-desc">并发执行一组任务，<strong>等待全部结束</strong>后返回等长数组。单项失败记为 <code>null</code>，天然形成 Barrier（屏障）。</p>
+
+        <div class="flow-diagram">
+          <div class="flow-diagram-title">季度汇报汇总：三个部门材料同时准备，汇总前必须等齐</div>
+          <div class="parallel-branches">
+            <div class="parallel-branch">
+              <div class="branch-task">销售部数据整理</div>
+              <div class="branch-barrier"></div>
+            </div>
+            <div class="parallel-branch">
+              <div class="branch-task">产品部进度梳理</div>
+              <div class="branch-barrier"></div>
+            </div>
+            <div class="parallel-branch">
+              <div class="branch-task">市场部投放分析</div>
+              <div class="branch-barrier"></div>
+            </div>
+          </div>
+          <div class="barrier-line">Barrier：三份材料全部到齐后，才能写季度总结</div>
+        </div>
+
+        <div class="vs-scenario">
+          <span class="scenario-title">场景：季度汇报</span>
+          <span class="scenario-text">销售、产品、市场三个部门可以同时准备材料，但 CEO 的季度总结必须看到全部数据才能定基调。缺少任何一方，结论都可能偏颇。</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="vs-panel vs-pipeline reveal" data-delay="3">
+      <div class="vs-panel-header"><span class="vs-icon">⟶</span>Pipeline：每个 item 完成后立刻向前</div>
+      <div class="vs-panel-body">
+        <p class="vs-desc">让每个 item 独立流过多个 stage，<strong>stage 之间没有全局 Barrier</strong>。某个 item 不必等其他 item 完成当前 stage。</p>
+
+        <div class="flow-diagram">
+          <div class="flow-diagram-title">合同审核：每份合同独立流过「提取 → 审查 → 修订 → 归档」</div>
+          <div class="pipeline-track">
+            <div class="pipeline-item done">合同 A 提取</div>
+            <span class="pipeline-arrow">→</span>
+            <div class="pipeline-item doing">条款审查</div>
+            <span class="pipeline-arrow">→</span>
+            <div class="pipeline-item waiting">风险修订</div>
+            <span class="pipeline-arrow">→</span>
+            <div class="pipeline-item waiting">归档入库</div>
+          </div>
+          <div class="pipeline-track" style="margin-top:14px;">
+            <div class="pipeline-item done">合同 B 提取</div>
+            <span class="pipeline-arrow">→</span>
+            <div class="pipeline-item done">条款审查</div>
+            <span class="pipeline-arrow">→</span>
+            <div class="pipeline-item doing">风险修订</div>
+            <span class="pipeline-arrow">→</span>
+            <div class="pipeline-item waiting">归档入库</div>
+          </div>
+          <div class="barrier-line" style="border-top-color:var(--ant-success); color:#389e0d;">无 Barrier：合同 A 审到一半时，合同 B 可能已经在修订，互不等待</div>
+        </div>
+
+        <div class="vs-scenario">
+          <span class="scenario-title">场景：批量合同审核</span>
+          <span class="scenario-text">100 份供应商合同要逐份审查。每份合同提取完条款后立刻进入风险审查，不必等全部合同提取完毕。某份合同卡在某条条款上，不影响其他合同继续推进。</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <span>区别不在谁更快，而在下一步是否必须等齐</span>
+    <span class="page-num">5 / 8</span>
+  </div>
+</section>
+
+<!-- ==================== P6 5.2 机械工作与判断工作的边界 ==================== -->
+<section class="slide">
+  <div class="slide-header">
+    <span class="slide-kicker reveal">分工原则</span>
+    <h2 class="reveal" data-delay="1">机械工作与判断工作的边界</h2>
+  </div>
+
+  <div class="table-wrap reveal" data-delay="2">
+    <table class="boundary-table">
+      <thead>
+        <tr>
+          <th style="width:44%">工作</th>
+          <th style="width:18%">更适合谁</th>
+          <th style="width:38%">原因</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="cell-work">控制并发、限制数量、排序、去重、检查字段完整性</td>
+          <td><span class="tag-js">JavaScript</span></td>
+          <td>规则明确，同样输入应得到同样结果</td>
+        </tr>
+        <tr>
+          <td class="cell-work">设计研究问题、评价来源质量</td>
+          <td><span class="tag-agent">agent()</span></td>
+          <td>需要结合主题理解上下文</td>
+        </tr>
+        <tr>
+          <td class="cell-work">检查 URL、日期格式、引用是否缺失</td>
+          <td><span class="tag-js">JavaScript</span></td>
+          <td>可以直接验证，不必消耗 Agent Turn</td>
+        </tr>
+        <tr>
+          <td class="cell-work">判断两份材料是真的矛盾，还是统计口径不同</td>
+          <td><span class="tag-agent">agent()</span></td>
+          <td>需要语义判断与证据权衡</td>
+        </tr>
+        <tr>
+          <td class="cell-work">合并结构化结果、生成引用索引</td>
+          <td><span class="tag-js">JavaScript</span></td>
+          <td>适合数组和对象处理</td>
+        </tr>
+        <tr>
+          <td class="cell-work">决定文章主线、保留不确定性、统一语气</td>
+          <td><span class="tag-agent">agent()</span></td>
+          <td>属于编辑判断</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="table-footer-note reveal" data-delay="3">能写成稳定规则的交给 JavaScript，需要理解语义和权衡证据的交给 agent()。Workflow 编排的是研究中可机械化的部分，语义判断仍留在 Agent Loop 中。</p>
+
+  <div class="slide-footer">
+    <span>Deep Research：文科任务也能被编排</span>
+    <span class="page-num">6 / 8</span>
+  </div>
+</section>
+
+<!-- ==================== P7 实践：用 Skill 构建 Dynamic Workflow ==================== -->
+<section class="slide">
+  <div class="slide-header">
+    <span class="slide-kicker reveal">动手实践</span>
+    <h2 class="reveal" data-delay="1">用 Skill 构建 Dynamic Workflow</h2>
+  </div>
+
+  <div class="practice-layout">
+    <div class="practice-steps">
+      <div class="step-item reveal" data-delay="2">
+        <span class="step-num">1</span>
+        <div class="step-content">
+          <h4>安装 CLI</h4>
+          <p><code>bun install --global @deerwork-ai/deer-workflow</code>，同时安装默认 Agent Runtime 使用的 Codex CLI。</p>
+        </div>
+      </div>
+      <div class="step-item reveal" data-delay="3">
+        <span class="step-num">2</span>
+        <div class="step-content">
+          <h4>用 create 命令生成</h4>
+          <p><code>deer-workflow create "并行研究多个独立角度..." &gt; workflow.ts</code>。本质是调用内置 Workflow Creator Skill。</p>
+        </div>
+      </div>
+      <div class="step-item reveal" data-delay="4">
+        <span class="step-num">3</span>
+        <div class="step-content">
+          <h4>安装 Skill 到其他 Agent</h4>
+          <p><code>deer-workflow skill install</code> 会把 workflow-creator 复制到 <code>~/.agents/skills</code> 或 <code>~/.claude/skills</code>。</p>
+        </div>
+      </div>
+      <div class="step-item reveal" data-delay="5">
+        <span class="step-num">4</span>
+        <div class="step-content">
+          <h4>运行 Workflow</h4>
+          <p>TUI 界面：<code>deer-workflow run ./workflow.ts --input '{"question":"..."}'</code>；无人值守加 <code>--print</code> 输出 JSONL。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="practice-visual">
+      <div class="skill-flow-card reveal" data-delay="3">
+        <h3>Workflow 内部结构</h3>
+        <div class="skill-flow-steps">
+          <div class="skill-flow-step">
+            <span class="sf-icon">P</span>
+            <div>
+              <div class="sf-text">phase("Research")</div>
+              <div class="sf-sub">标记可观察的工作阶段</div>
+            </div>
+          </div>
+          <div class="skill-flow-step">
+            <span class="sf-icon">∥</span>
+            <div>
+              <div class="sf-text">parallel(topics.map(...))</div>
+              <div class="sf-sub">多主题并行研究，Barrier 等齐</div>
+            </div>
+          </div>
+          <div class="skill-flow-step">
+            <span class="sf-icon">A</span>
+            <div>
+              <div class="sf-text">agent("Synthesize...")</div>
+              <div class="sf-sub">总编 Agent 汇编报告</div>
+            </div>
+          </div>
+          <div class="skill-flow-step">
+            <span class="sf-icon">R</span>
+            <div>
+              <div class="sf-text">return report</div>
+              <div class="sf-sub">JavaScript 聚合结构化结果</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cmd-card reveal" data-delay="4">
+        <div class="cmd-title">常用命令速查</div>
+        <div class="cmd-line"><span class="cmd-prompt">$ </span><span class="cmd-cmd">deer-workflow create</span> <span class="cmd-arg">"你的任务描述"</span> <span class="cmd-flag">&gt; workflow.ts</span></div>
+        <div class="cmd-line"><span class="cmd-prompt">$ </span><span class="cmd-cmd">deer-workflow skill install</span></div>
+        <div class="cmd-line"><span class="cmd-prompt">$ </span><span class="cmd-cmd">deer-workflow run</span> <span class="cmd-arg">./workflow.ts</span> <span class="cmd-flag">--input</span> <span class="cmd-arg">'{"question":"..."}'</span></div>
+        <div class="cmd-line"><span class="cmd-prompt">$ </span><span class="cmd-cmd">deer-workflow run</span> <span class="cmd-arg">./workflow.ts</span> <span class="cmd-flag">--print</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <span>DeerFlow 3.0 试点项目 · TypeScript + Bun</span>
+    <span class="page-num">7 / 8</span>
+  </div>
+</section>
+
+<!-- ==================== P8 Deep Research 实战案例 ==================== -->
+<section class="slide">
+  <div class="slide-header">
+    <span class="slide-kicker reveal">实战案例</span>
+    <h2 class="reveal" data-delay="1">用 deer-workflow 做一次主题 Deep Research</h2>
+  </div>
+
+  <div class="demo-layout">
+    <div class="demo-panel p1 reveal" data-delay="2">
+      <div class="demo-panel-header">
+        <span class="dp-icon">▶</span>
+        <h3>运行 Workflow</h3>
+        <span class="dp-sub">TUI 实时进度</span>
+      </div>
+      <div class="demo-panel-body">
+        <div class="demo-img-wrap">
+          <img src="assets/deep-research-run.png" alt="deer-workflow 运行界面">
+        </div>
+        <p class="demo-caption"><strong>进度展示：</strong>左侧面板显示 Research / Synthesize 两个阶段耗时，右侧日志流实时输出总编 Agent 的汇编进度</p>
+      </div>
+    </div>
+
+    <div class="demo-panel p2 reveal" data-delay="3">
+      <div class="demo-panel-header">
+        <span class="dp-icon">📄</span>
+        <h3>生成研究报告</h3>
+        <span class="dp-sub">Markdown 输出</span>
+      </div>
+      <div class="demo-panel-body">
+        <div class="demo-img-wrap">
+          <img src="assets/deep-research-report.png" alt="生成的调研报告">
+        </div>
+        <p class="demo-caption"><strong>输出成果：</strong>3 个研究主题并行调研后，总编 Agent 汇编成 8 节结构化报告</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <span class="page-num">8 / 8</span>
+  </div>
+</section>
+
+</main>
+</div>
+
+<div class="deck-controls">
+  <button id="prevBtn" aria-label="上一页">‹</button>
+  <div class="progress-dots" id="progressDots"></div>
+  <button id="nextBtn" aria-label="下一页">›</button>
+</div>
+
+<script>
+/* ===========================================
+   SLIDE PRESENTATION CONTROLLER
+   =========================================== */
+class SlidePresentation {
+  constructor() {
+    this.slides = document.querySelectorAll('.slide');
+    this.currentSlide = 0;
+    this.stage = document.getElementById('deckStage');
+    this.setupStageScale();
+    this.setupKeyboardNav();
+    this.setupTouchNav();
+    this.setupControls();
+    this.showSlide(0);
+  }
+
+  setupStageScale() {
+    const scale = () => {
+      const factor = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+      const x = (window.innerWidth - 1920 * factor) / 2;
+      const y = (window.innerHeight - 1080 * factor) / 2;
+      this.stage.style.transform = `translate(${x}px, ${y}px) scale(${factor})`;
+    };
+    scale();
+    window.addEventListener('resize', scale);
+  }
+
+  setupKeyboardNav() {
+    document.addEventListener('keydown', (e) => {
+      if (e.target.getAttribute('contenteditable')) return;
+      if (['ArrowRight','ArrowDown',' ','PageDown'].includes(e.key)) { e.preventDefault(); this.next(); }
+      if (['ArrowLeft','ArrowUp','PageUp'].includes(e.key)) { e.preventDefault(); this.prev(); }
+      if (e.key === 'Home') this.showSlide(0);
+      if (e.key === 'End') this.showSlide(this.slides.length - 1);
+    });
+  }
+
+  setupTouchNav() {
+    let startX = 0, startY = 0;
+    this.stage.addEventListener('touchstart', (e) => {
+      startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+    }, { passive: true });
+    this.stage.addEventListener('touchend', (e) => {
+      const dx = e.changedTouches[0].clientX - startX;
+      const dy = e.changedTouches[0].clientY - startY;
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 60) {
+        dx < 0 ? this.next() : this.prev();
+      }
+    }, { passive: true });
+  }
+
+  setupControls() {
+    document.getElementById('prevBtn').addEventListener('click', () => this.prev());
+    document.getElementById('nextBtn').addEventListener('click', () => this.next());
+    const dots = document.getElementById('progressDots');
+    this.slides.forEach((_, i) => {
+      const dot = document.createElement('span');
+      dot.className = 'dot' + (i === 0 ? ' active' : '');
+      dot.addEventListener('click', () => this.showSlide(i));
+      dots.appendChild(dot);
+    });
+  }
+
+  showSlide(index) {
+    this.currentSlide = Math.max(0, Math.min(index, this.slides.length - 1));
+    this.slides.forEach((slide, i) => {
+      slide.classList.toggle('active', i === this.currentSlide);
+      slide.classList.toggle('visible', i === this.currentSlide);
+    });
+    document.querySelectorAll('.progress-dots .dot').forEach((d, i) => {
+      d.classList.toggle('active', i === this.currentSlide);
+    });
+  }
+
+  next() { this.showSlide(this.currentSlide + 1); }
+  prev() { this.showSlide(this.currentSlide - 1); }
+}
+
+/* ===========================================
+   INLINE EDITING
+   =========================================== */
+class InlineEditor {
+  constructor() {
+    this.isActive = false;
+    this.originals = new Map();
+  }
+  toggleEditMode() {
+    this.isActive = !this.isActive;
+    document.body.classList.toggle('editing', this.isActive);
+    document.getElementById('editToggle').classList.toggle('active', this.isActive);
+    const editables = document.querySelectorAll('.slide h1, .slide h2, .slide h3, .slide h4, .slide p, .slide li, .slide td, .slide th, .slide .subtitle, .slide .card-desc, .slide .vs-desc, .slide .vs-scenario, .slide .barrier-note, .slide .table-footer-note, .slide .step-content p, .slide .step-content h4, .slide .trans-sub, .slide .trans-note, .slide .sf-text, .slide .sf-sub, .slide .cmd-line, .slide .branch-task, .slide .pipeline-item, .slide .flow-diagram-title');
+    editables.forEach(el => {
+      if (this.isActive) {
+        this.originals.set(el, el.innerHTML);
+        el.setAttribute('contenteditable', 'true');
+      } else {
+        el.removeAttribute('contenteditable');
+        localStorage.setItem('slideEdits_' + location.pathname, JSON.stringify(this.serializeEdits(editables)));
+      }
+    });
+  }
+  serializeEdits(editables) {
+    const edits = {};
+    editables.forEach((el, i) => {
+      const orig = this.originals.get(el);
+      if (orig !== undefined && orig !== el.innerHTML) edits[i] = el.innerHTML;
+    });
+    return edits;
+  }
+  loadEdits() {
+    try {
+      const saved = localStorage.getItem('slideEdits_' + location.pathname);
+      if (!saved) return;
+      const edits = JSON.parse(saved);
+      const editables = document.querySelectorAll('.slide h1, .slide h2, .slide h3, .slide h4, .slide p, .slide li, .slide td, .slide th, .slide .subtitle, .slide .card-desc, .slide .vs-desc, .slide .vs-scenario, .slide .barrier-note, .slide .table-footer-note, .slide .step-content p, .slide .step-content h4, .slide .trans-sub, .slide .trans-note, .slide .sf-text, .slide .sf-sub, .slide .cmd-line, .slide .branch-task, .slide .pipeline-item, .slide .flow-diagram-title');
+      editables.forEach((el, i) => { if (edits[i]) el.innerHTML = edits[i]; });
+    } catch(e) {}
+  }
+}
+
+const editor = new InlineEditor();
+editor.loadEdits();
+
+document.getElementById('editToggle').addEventListener('click', () => editor.toggleEditMode());
+
+const hotzone = document.querySelector('.edit-hotzone');
+const editToggle = document.getElementById('editToggle');
+let hideTimeout = null;
+hotzone.addEventListener('mouseenter', () => { clearTimeout(hideTimeout); editToggle.classList.add('show'); });
+hotzone.addEventListener('mouseleave', () => { hideTimeout = setTimeout(() => { if (!editor.isActive) editToggle.classList.remove('show'); }, 400); });
+editToggle.addEventListener('mouseenter', () => { clearTimeout(hideTimeout); });
+editToggle.addEventListener('mouseleave', () => { hideTimeout = setTimeout(() => { if (!editor.isActive) editToggle.classList.remove('show'); }, 400); });
+hotzone.addEventListener('click', () => editor.toggleEditMode());
+
+document.addEventListener('keydown', (e) => {
+  if ((e.key === 'e' || e.key === 'E') && !e.target.getAttribute('contenteditable')) {
+    editor.toggleEditMode();
+  }
+});
+
+new SlidePresentation();
+</script>
+
+</body>
+</html>

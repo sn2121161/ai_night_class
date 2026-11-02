@@ -1,0 +1,1798 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>分子项链商城：后端功能拆解与 AI 提示词写法</title>
+
+<!-- === 字体：Archivo(拉丁展示) + Noto Sans SC(中文) + JetBrains Mono(代码) === -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800;900&family=Noto+Sans+SC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap">
+
+<style>
+/* ===========================================
+   主题变量 — 简洁商务亮色系（Swiss Modern 变体）
+   改这里即可整体换肤
+   =========================================== */
+:root {
+    --stage-bg: #e8e8e6;          /* 放映时舞台外的留白 */
+    --slide-bg: #ffffff;          /* 幻灯片底色：纯白 */
+    --ink: #16161a;               /* 主文字：近黑 */
+    --ink-2: #4b4b52;             /* 次文字 */
+    --ink-3: #8a8a92;             /* 弱提示 */
+    --accent: #ff3300;            /* 唯一强调色：瑞士红 */
+    --accent-soft: #fff0ec;       /* 强调色浅底 */
+    --panel: #f6f6f4;             /* 浅灰面板 */
+    --panel-2: #efefec;
+    --line: #e2e2de;              /* 分隔线 */
+
+    --font-display: 'Archivo', 'Noto Sans SC', sans-serif;
+    --font-body: 'Noto Sans SC', 'Archivo', sans-serif;
+    --font-mono: 'JetBrains Mono', 'Noto Sans SC', monospace;
+
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --duration-normal: 0.55s;
+}
+
+/* ===========================================
+   基础重置
+   =========================================== */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* ===========================================
+   FIXED 16:9 STAGE — viewport-base.css 全量引入
+   =========================================== */
+html, body {
+    width: 100%; height: 100%;
+    margin: 0; overflow: hidden;
+    background: var(--stage-bg, #000);
+}
+.deck-viewport {
+    position: fixed; inset: 0; overflow: hidden;
+    background: var(--stage-bg, #000);
+}
+.deck-stage {
+    position: absolute; left: 0; top: 0;
+    width: 1920px; height: 1080px;
+    overflow: hidden; transform-origin: 0 0;
+    background: var(--slide-bg, #fff);
+}
+.slide {
+    position: absolute; inset: 0;
+    width: 1920px; height: 1080px;
+    overflow: hidden; display: block;
+    visibility: hidden; opacity: 0; pointer-events: none;
+    background: var(--slide-bg, #fff);
+}
+.slide.active, .slide.visible {
+    visibility: visible; opacity: 1; pointer-events: auto; z-index: 1;
+}
+img, video, canvas, svg { max-width: 100%; max-height: 100%; }
+.deck-controls {
+    position: fixed; left: 50%; bottom: 22px;
+    transform: translateX(-50%); z-index: 1000;
+}
+@media print {
+    html, body { width: 1920px; height: auto; overflow: visible; background: #fff; }
+    .deck-viewport { position: static; overflow: visible; background: #fff; }
+    .deck-stage { position: static; width: auto; height: auto; transform: none !important; background: none; }
+    .slide {
+        position: relative; display: block !important; visibility: visible !important;
+        opacity: 1 !important; pointer-events: auto !important;
+        width: 1920px; height: 1080px;
+        break-after: page; page-break-after: always;
+    }
+    .slide:last-child { break-after: auto; page-break-after: auto; }
+    .deck-controls { display: none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.2s !important;
+    }
+}
+
+/* ===========================================
+   动画：商务风 — 快速、克制的上浮显现
+   =========================================== */
+.reveal {
+    opacity: 0; transform: translateY(26px);
+    transition: opacity var(--duration-normal) var(--ease-out-expo),
+                transform var(--duration-normal) var(--ease-out-expo);
+}
+.slide.visible .reveal { opacity: 1; transform: translateY(0); }
+.reveal.d1 { transition-delay: 0.06s; }
+.reveal.d2 { transition-delay: 0.14s; }
+.reveal.d3 { transition-delay: 0.22s; }
+.reveal.d4 { transition-delay: 0.30s; }
+.reveal.d5 { transition-delay: 0.38s; }
+.reveal.d6 { transition-delay: 0.46s; }
+
+/* ===========================================
+   通用组件语法
+   =========================================== */
+.slide {
+    font-family: var(--font-body); color: var(--ink);
+    /* 纵向 flex：正文区撑满，提示词卡片沉底，消除下半部分留白 */
+    display: flex; flex-direction: column;
+}
+
+/* --- 页眉：大编号 + 标题 + 面包屑 --- */
+.slide-head {
+    display: flex; align-items: flex-start; gap: 36px;
+    padding: 56px 80px 0 80px;
+}
+.slide-num {
+    font-family: var(--font-display); font-weight: 900;
+    font-size: 88px; line-height: 0.9; color: var(--accent);
+    letter-spacing: -2px; min-width: 150px;
+}
+.slide-num small {
+    display: block; font-size: 15px; font-weight: 700;
+    letter-spacing: 3px; color: var(--ink-3); margin-top: 10px;
+}
+.head-main { flex: 1; }
+.kicker {
+    font-family: var(--font-mono); font-size: 15px; font-weight: 600;
+    letter-spacing: 2px; color: var(--accent);
+    text-transform: uppercase; margin-bottom: 12px;
+}
+.slide-head h2 {
+    font-family: var(--font-display); font-weight: 900;
+    font-size: 52px; line-height: 1.15; letter-spacing: -1px;
+}
+.crumb {
+    font-family: var(--font-mono); font-size: 13px;
+    color: var(--ink-3); letter-spacing: 1px;
+    padding-top: 10px; white-space: nowrap;
+}
+.head-rule {
+    height: 3px; background: var(--ink); margin: 28px 80px 0 80px;
+    position: relative;
+}
+.head-rule::before {
+    content: ''; position: absolute; left: 0; top: 0;
+    width: 150px; height: 3px; background: var(--accent);
+}
+
+/* --- 正文栅格：flex:1 撑满页眉与提示词卡片之间的全部高度 --- */
+.body {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 30px; padding: 36px 80px 0 80px;
+    flex: 1; align-content: stretch;
+}
+.body > * { min-height: 0; }
+/* 正文区里的纯容器列（如附录右栏）也让子块均分高度 */
+.body > div:not(.block) { display: flex; flex-direction: column; }
+.body > div:not(.block) > .block { flex: 1; }
+/* 页眉/分隔线/提示词卡/脚注不压缩，正文区可收缩兜底 */
+.slide-head, .head-rule, .prompt-card, .src { flex-shrink: 0; }
+.body { min-height: 0; }
+.body.single { grid-template-columns: 1fr; }
+.body.wide-left { grid-template-columns: 1.25fr 1fr; }
+
+/* --- 内容块：纵向撑满行高，内容垂直居中分布 --- */
+.block {
+    background: var(--panel); border-radius: 4px;
+    padding: 28px 32px; position: relative;
+    display: flex; flex-direction: column; justify-content: center;
+}
+.block.tint { background: var(--accent-soft); }
+.block.white { background: #fff; border: 1px solid var(--line); }
+.block-label {
+    font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+    letter-spacing: 2px; color: var(--accent);
+    text-transform: uppercase; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 10px;
+}
+.block-label::before {
+    content: ''; width: 18px; height: 3px; background: var(--accent);
+}
+.block p { font-size: 23px; line-height: 1.6; color: var(--ink-2); }
+.block p + p { margin-top: 10px; }
+.block p strong, .block li strong { color: var(--ink); font-weight: 700; }
+
+/* --- 要点列表 --- */
+.points { list-style: none; }
+.points li {
+    font-size: 23px; line-height: 1.55; color: var(--ink-2);
+    padding: 9px 0 9px 26px; position: relative;
+}
+.points li::before {
+    content: ''; position: absolute; left: 0; top: 20px;
+    width: 12px; height: 3px; background: var(--accent);
+}
+.points li strong { color: var(--ink); }
+
+/* --- 术语条 --- */
+.terms { display: flex; flex-direction: column; gap: 12px; }
+.term {
+    display: flex; gap: 14px; align-items: baseline;
+    font-size: 22px; line-height: 1.5;
+}
+.term b {
+    font-family: var(--font-display); font-weight: 800;
+    color: var(--accent); white-space: nowrap; font-size: 22px;
+}
+.term span { color: var(--ink-2); }
+
+/* --- 步骤流 --- */
+.steps { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.step {
+    background: #fff; border: 2px solid var(--ink);
+    padding: 12px 20px; font-size: 21px; font-weight: 700;
+    border-radius: 999px; white-space: nowrap;
+}
+.step.hot { background: var(--accent); border-color: var(--accent); color: #fff; }
+.step-arrow { color: var(--accent); font-weight: 900; font-size: 22px; }
+
+/* --- 表格 --- */
+table.grid { width: 100%; border-collapse: collapse; font-size: 21px; }
+table.grid th {
+    font-family: var(--font-display); font-weight: 800; font-size: 18px;
+    letter-spacing: 1px; text-align: left; color: #fff;
+    background: var(--ink); padding: 13px 16px;
+}
+table.grid td {
+    padding: 13px 16px; border-bottom: 1px solid var(--line);
+    color: var(--ink-2); line-height: 1.5; vertical-align: top;
+}
+table.grid tr:nth-child(even) td { background: var(--panel); }
+table.grid td b { color: var(--ink); }
+
+/* --- 模块提示词卡片（每页底部，自动沉底） --- */
+.prompt-card {
+    margin: 28px 80px 52px 80px;
+    background: var(--ink); color: #f5f5f3;
+    border-radius: 4px; padding: 24px 32px;
+    position: relative; overflow: hidden;
+}
+.prompt-card::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 6px; background: var(--accent);
+}
+.prompt-label {
+    font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+    letter-spacing: 3px; color: var(--accent); display: block; margin-bottom: 8px;
+}
+.prompt-card p {
+    font-family: var(--font-mono); font-size: 18.5px; line-height: 1.65;
+    color: #e8e8e4;
+}
+
+/* --- 代码/路径 --- */
+code, .mono {
+    font-family: var(--font-mono); font-size: 0.88em;
+    background: var(--panel-2); padding: 2px 7px; border-radius: 3px;
+    color: var(--ink); font-weight: 600;
+}
+.prompt-card code { background: rgba(255,255,255,0.12); color: #fff; }
+
+/* --- 便签/引用 --- */
+.note {
+    border-left: 4px solid var(--accent);
+    padding: 6px 0 6px 20px; font-size: 23px; line-height: 1.55;
+    color: var(--ink-2); font-style: normal;
+}
+.note b { color: var(--ink); }
+
+/* --- 外部课件跳转链接 --- */
+.ext-link {
+    display: inline-flex; align-items: center; gap: 10px;
+    align-self: flex-start; /* 在 flex 列容器内按内容宽度排列 */
+    margin-top: 18px; font-size: 22px; font-weight: 700;
+    color: var(--accent); text-decoration: none;
+    border-bottom: 2px solid var(--accent); padding-bottom: 3px;
+    transition: background 0.2s ease, padding 0.2s ease;
+}
+.ext-link::after { content: '↗'; font-family: var(--font-display); }
+.ext-link:hover { background: var(--accent-soft); padding-left: 8px; padding-right: 8px; }
+
+/* --- 封面 --- */
+.title-slide { display: flex; flex-direction: column; justify-content: center; padding: 0 110px; }
+.title-slide .top-line {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--font-mono); font-size: 16px; letter-spacing: 2px;
+    color: var(--ink-3); margin-bottom: 60px;
+}
+.title-slide .top-line b { color: var(--accent); }
+.title-slide h1 {
+    font-family: var(--font-display); font-weight: 900;
+    font-size: 108px; line-height: 1.08; letter-spacing: -3px;
+}
+.title-slide h1 em { font-style: normal; color: var(--accent); }
+.title-slide .sub {
+    margin-top: 36px; font-size: 30px; color: var(--ink-2); font-weight: 500;
+    max-width: 1300px; line-height: 1.5;
+}
+.title-slide .meta {
+    margin-top: 70px; display: flex; gap: 44px;
+    font-family: var(--font-mono); font-size: 16px; color: var(--ink-3);
+}
+.title-slide .meta span { border-top: 3px solid var(--accent); padding-top: 12px; }
+.title-deco {
+    position: absolute; right: -140px; top: -140px;
+    width: 480px; height: 480px; border: 3px solid var(--line);
+    border-radius: 50%; pointer-events: none;
+}
+.title-deco::after {
+    content: ''; position: absolute; right: 90px; bottom: -30px;
+    width: 60px; height: 60px; background: var(--accent); border-radius: 50%;
+}
+
+/* --- 章节分隔 --- */
+.section-slide {
+    background: var(--ink); color: #fff;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 0 110px;
+}
+.section-slide .sec-num {
+    font-family: var(--font-display); font-weight: 900; font-size: 200px;
+    line-height: 1; color: var(--accent); letter-spacing: -6px;
+}
+.section-slide h2 {
+    font-family: var(--font-display); font-weight: 900;
+    font-size: 72px; margin-top: 20px; letter-spacing: -2px;
+}
+.section-slide p { margin-top: 24px; font-size: 24px; color: #b9b9c0; max-width: 1100px; line-height: 1.6; }
+
+/* --- ER 图：同样撑满正文区 --- */
+.er-wrap {
+    display: grid; grid-template-columns: 1180px 1fr; gap: 30px;
+    padding: 36px 80px 0 80px; flex: 1; min-height: 0;
+}
+.er-svg-box {
+    background: var(--panel); border-radius: 4px; padding: 14px;
+    display: flex; align-items: center; justify-content: center;
+}
+/* ER 右栏两个块均分高度 */
+.er-wrap > div { display: flex; flex-direction: column; }
+.er-wrap > div .block { flex: 1; }
+.er-box { fill: #fff; stroke: #16161a; stroke-width: 2; }
+.er-box.hot { fill: var(--accent-soft); stroke: var(--accent); }
+.er-txt { font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 600; fill: #16161a; }
+.er-line { stroke: #8a8a92; stroke-width: 1.6; }
+.er-rel { font-family: 'Noto Sans SC', sans-serif; font-size: 14px; fill: #ff3300; font-weight: 700; }
+
+/* --- 来源脚注 --- */
+.src {
+    margin: 0 80px 40px 80px;
+    font-family: var(--font-mono); font-size: 13px; color: var(--ink-3);
+    line-height: 1.7;
+}
+
+/* --- 页码 --- */
+.pageno {
+    position: absolute; right: 80px; bottom: 40px;
+    font-family: var(--font-mono); font-size: 14px; color: var(--ink-3);
+    letter-spacing: 1px;
+}
+.pageno b { color: var(--accent); }
+
+/* --- 幻灯片内截图（缩小展示，带边框与轻阴影） --- */
+.shot {
+    display: block; margin: 18px auto 0;
+    max-width: 88%; max-height: 300px; width: auto; height: auto;
+    border: 1px solid var(--line); border-radius: 6px;
+    box-shadow: 0 6px 24px rgba(22, 22, 26, 0.10);
+}
+
+/* ===========================================
+   精选动画组件（仅用于个别页面，不全局铺开）
+   =========================================== */
+/* --- 封面：标题上擦除显现 --- */
+@keyframes wipeUp {
+    from { clip-path: inset(100% 0 0 0); transform: translateY(40px); opacity: 0; }
+    to   { clip-path: inset(0 0 0 0);    transform: none;         opacity: 1; }
+}
+.fx-wipe { opacity: 0; }
+.slide.visible .fx-wipe { animation: wipeUp 0.9s var(--ease-out-expo) 0.15s forwards; }
+
+/* --- 封面：装饰圆环缓慢轨道旋转 + 红点脉冲 --- */
+@keyframes orbit { to { transform: rotate(360deg); } }
+.title-slide .title-deco { animation: orbit 40s linear infinite; }
+@keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.35); opacity: 0.7; } }
+.title-deco::after { animation: pulse 3s ease-in-out infinite; }
+
+/* --- Slide 06：ER 图连线逐条绘制、实体淡入 --- */
+@keyframes drawLine { to { stroke-dashoffset: 0; } }
+@keyframes fadeIn { to { opacity: 1; } }
+.er-line { stroke-dasharray: 500; stroke-dashoffset: 500; }
+.er-box, .er-txt, .er-rel { opacity: 0; }
+.slide.visible .er-line { animation: drawLine 0.8s var(--ease-out-expo) forwards; }
+.slide.visible .er-line:nth-of-type(1)  { animation-delay: 0.15s; }
+.slide.visible .er-line:nth-of-type(2)  { animation-delay: 0.22s; }
+.slide.visible .er-line:nth-of-type(3)  { animation-delay: 0.29s; }
+.slide.visible .er-line:nth-of-type(4)  { animation-delay: 0.36s; }
+.slide.visible .er-line:nth-of-type(5)  { animation-delay: 0.43s; }
+.slide.visible .er-line:nth-of-type(6)  { animation-delay: 0.50s; }
+.slide.visible .er-line:nth-of-type(7)  { animation-delay: 0.57s; }
+.slide.visible .er-line:nth-of-type(8)  { animation-delay: 0.64s; }
+.slide.visible .er-line:nth-of-type(9)  { animation-delay: 0.71s; }
+.slide.visible .er-line:nth-of-type(10) { animation-delay: 0.78s; }
+.slide.visible .er-line:nth-of-type(11) { animation-delay: 0.85s; }
+.slide.visible .er-line:nth-of-type(12) { animation-delay: 0.92s; }
+.slide.visible .er-box { animation: fadeIn 0.5s ease 0.35s forwards; }
+.slide.visible .er-txt { animation: fadeIn 0.5s ease 0.45s forwards; }
+.slide.visible .er-rel { animation: fadeIn 0.4s ease 1.05s forwards; }
+
+/* --- 步骤流弹簧逐项弹出（仅标记 .fx-pop 的页面） --- */
+@keyframes popIn { to { opacity: 1; transform: scale(1); } }
+.fx-pop > * { opacity: 0; transform: scale(0.5); }
+.slide.visible .fx-pop > * { animation: popIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+.slide.visible .fx-pop > *:nth-child(1)  { animation-delay: 0.10s; }
+.slide.visible .fx-pop > *:nth-child(2)  { animation-delay: 0.16s; }
+.slide.visible .fx-pop > *:nth-child(3)  { animation-delay: 0.22s; }
+.slide.visible .fx-pop > *:nth-child(4)  { animation-delay: 0.28s; }
+.slide.visible .fx-pop > *:nth-child(5)  { animation-delay: 0.34s; }
+.slide.visible .fx-pop > *:nth-child(6)  { animation-delay: 0.40s; }
+.slide.visible .fx-pop > *:nth-child(7)  { animation-delay: 0.46s; }
+.slide.visible .fx-pop > *:nth-child(8)  { animation-delay: 0.52s; }
+.slide.visible .fx-pop > *:nth-child(9)  { animation-delay: 0.58s; }
+.slide.visible .fx-pop > *:nth-child(10) { animation-delay: 0.64s; }
+.slide.visible .fx-pop > *:nth-child(11) { animation-delay: 0.70s; }
+.slide.visible .fx-pop > *:nth-child(12) { animation-delay: 0.76s; }
+.slide.visible .fx-pop > *:nth-child(13) { animation-delay: 0.82s; }
+
+/* --- 章节分隔页：大数字模糊压入 + 左侧红线生长 --- */
+@keyframes secIn { to { opacity: 1; transform: scale(1); filter: blur(0); } }
+.section-slide .sec-num { opacity: 0; transform: scale(1.25); filter: blur(8px); }
+.slide.visible .sec-num { animation: secIn 0.8s var(--ease-out-expo) 0.1s forwards; }
+@keyframes barGrow { to { transform: scaleY(1); } }
+.section-slide::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 10px; background: var(--accent);
+    transform: scaleY(0); transform-origin: top;
+}
+.slide.visible.section-slide::before { animation: barGrow 0.7s var(--ease-out-expo) forwards; }
+
+/* --- 打印时所有动画元素直接呈现最终状态 --- */
+@media print {
+    .fx-wipe, .er-box, .er-txt, .er-rel, .fx-pop > *, .section-slide .sec-num {
+        opacity: 1 !important; transform: none !important; filter: none !important;
+        clip-path: none !important; animation: none !important;
+    }
+    .er-line { stroke-dashoffset: 0 !important; animation: none !important; }
+    .section-slide::before { transform: scaleY(1) !important; animation: none !important; }
+}
+
+/* ===========================================
+   放映控件（舞台外）：进度条 + 页码
+   =========================================== */
+.progress-bar {
+    position: fixed; left: 0; top: 0; height: 4px;
+    background: var(--accent); z-index: 1001;
+    transition: width 0.3s var(--ease-out-expo); width: 0;
+}
+.deck-hud {
+    position: fixed; right: 24px; bottom: 18px; z-index: 1001;
+    font-family: var(--font-mono); font-size: 13px;
+    color: #8a8a92; background: rgba(255,255,255,0.85);
+    padding: 6px 14px; border-radius: 999px; letter-spacing: 1px;
+}
+
+/* ===========================================
+   内联编辑（E 键 / 左上角热区）
+   =========================================== */
+.edit-hotzone {
+    position: fixed; top: 0; left: 0; width: 80px; height: 80px;
+    z-index: 10000; cursor: pointer;
+}
+.edit-toggle {
+    position: fixed; top: 16px; left: 16px; z-index: 10001;
+    width: 44px; height: 44px; border-radius: 50%;
+    border: none; background: var(--ink); color: #fff;
+    font-size: 18px; cursor: pointer;
+    opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+}
+.edit-toggle.show, .edit-toggle.active { opacity: 1; pointer-events: auto; }
+.edit-toggle.active { background: var(--accent); }
+body.editing .slide.visible [contenteditable] { outline: 2px dashed var(--accent); outline-offset: 2px; }
+.edit-banner {
+    position: fixed; top: 16px; left: 72px; z-index: 10001;
+    font-family: var(--font-mono); font-size: 13px; color: #fff;
+    background: var(--accent); padding: 8px 16px; border-radius: 999px;
+    display: none;
+}
+body.editing .edit-banner { display: block; }
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar"></div>
+<div class="deck-hud" id="deckHud">1 / 27</div>
+<div class="edit-hotzone"></div>
+<button class="edit-toggle" id="editToggle" title="编辑模式 (E)">✎</button>
+<div class="edit-banner">编辑模式：点击文字直接修改，Ctrl+S 导出 HTML</div>
+
+<div class="deck-viewport">
+<main class="deck-stage" id="deckStage">
+
+<!-- ================= 封面 ================= -->
+<section class="slide title-slide active">
+    <div class="title-deco"></div>
+    <div class="top-line reveal">
+        <span>AI 夜校 · 第六课 <b>后端设计 2</b></span>
+        <span>2026-10</span>
+    </div>
+    <h1 class="fx-wipe">分子项链商城<br>后端拆解 <em>×</em> AI 提示词</h1>
+    <p class="sub reveal d2">把一笔订单背后的后端讲清楚：接口、数据库、事务、权限、支付边界——每个概念配一个生活比喻和一段可复用的提示词。</p>
+    <div class="meta reveal d3">
+        <span>24 页讲稿</span>
+        <span>FastAPI · PostgreSQL</span>
+        <span>面向非技术听众</span>
+    </div>
+</section>
+
+<!-- ================= 用法：通用开场提示词 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">00<small>START</small></div>
+        <div class="head-main">
+            <div class="kicker">复刻方式</div>
+            <h2>先复制这段「通用开场提示词」</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body wide-left">
+        <div class="block tint reveal d1">
+            <div class="block-label">怎么用这份讲稿</div>
+            <ul class="points">
+                <li>没有源码也能复刻：<strong>先发通用开场提示词</strong>，再按顺序发每页的「模块提示词」。</li>
+                <li>提示词要求 AI 在<strong>你自己的电脑</strong>上搭建服务，逐模块实现。</li>
+                <li>数据库账号、密码、目录和飞书配置<strong>由你自己设置</strong>，不写死在代码里。</li>
+                <li>商品初始数据：<strong>只有一款苯分子项链</strong>，默认库存 12 个。</li>
+            </ul>
+        </div>
+        <div class="block reveal d2">
+            <div class="block-label">技术约定</div>
+            <ul class="points">
+                <li>Python + <strong>FastAPI</strong> + <strong>PostgreSQL</strong></li>
+                <li>所有接口以 <code>/api</code> 开头</li>
+                <li>连接和密钥从<strong>环境变量</strong>读取</li>
+                <li>当前只记录支付方式，<strong>不真实扣款</strong></li>
+                <li>清晰的中文错误信息</li>
+            </ul>
+        </div>
+    </div>
+    <div class="prompt-card reveal d3">
+        <span class="prompt-label">通用开场提示词</span>
+        <p>请从零制作一个"分子项链商城"后端。使用 Python、FastAPI 和 PostgreSQL；所有接口以 /api 开头。请先给出可在我本机运行的目录结构、依赖、配置示例、启动步骤，再逐模块实现。数据库连接和密钥从环境变量读取，不写死我的电脑路径或密码。每完成一块，给出请求示例、预期结果及测试。商品初始数据是 1 款苯分子项链，默认库存 12 个。当前只记录支付方式，不进行真实扣款。请使用清晰的中文错误信息。</p>
+    </div>
+    <div class="pageno"><b>00</b> / 24</div>
+</section>
+
+<!-- ================= Slide 01 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">01</div>
+        <div class="head-main">
+            <div class="kicker">全局视角</div>
+            <h2>一笔订单背后，后端做了什么</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="block tint reveal d1">
+            <div class="block-label">一句话</div>
+            <p style="font-size:26px;color:var(--ink);font-weight:700;line-height:1.5">后端是商店的<br>「收银台 + 仓库账本 + 店长工作台」。</p>
+            <div class="terms" style="margin-top:18px">
+                <div class="term"><b>前端</b><span>顾客看到的页面</span></div>
+                <div class="term"><b>后端</b><span>验证规则、保存数据、连接外部服务</span></div>
+            </div>
+        </div>
+        <div class="block reveal d2">
+            <div class="block-label">顾客旅程</div>
+            <div class="steps fx-pop">
+                <span class="step">看商品</span><span class="step-arrow">→</span>
+                <span class="step">注册登录</span><span class="step-arrow">→</span>
+                <span class="step">加购物车</span><span class="step-arrow">→</span>
+                <span class="step">选配送支付</span><span class="step-arrow">→</span>
+                <span class="step hot">下单</span><span class="step-arrow">→</span>
+                <span class="step">扣库存</span><span class="step-arrow">→</span>
+                <span class="step">飞书通知店主</span>
+            </div>
+            <p style="margin-top:18px"><strong>本项目：</strong>页面在 <code>frontend/app/</code>，商城服务在 <code>backend/shop_api/</code>；前端通过接口取得商品和订单数据。</p>
+        </div>
+    </div>
+    <div class="prompt-card reveal d3">
+        <span class="prompt-label">模块提示词</span>
+        <p>请先画出分子项链商城的一次购买流程，用"顾客操作、后端处理、数据库变化"三列说明每一步，并列出需要开发的后端模块。不要先写代码。</p>
+    </div>
+    <div class="pageno"><b>01</b> / 24</div>
+</section>
+
+<!-- ================= Slide 02 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">02</div>
+        <div class="head-main">
+            <div class="kicker">方法论</div>
+            <h2>如何把想法说成有效的提示词</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="block tint reveal d1">
+            <div class="block-label">核心原则</div>
+            <p style="font-size:23px;color:var(--ink);font-weight:700;line-height:1.55">写清「谁来用、要做什么、输入什么、<br>成功后看到什么、失败时怎么办」。</p>
+            <p style="margin-top:14px">只说"做购物车"，像对店员说"帮我买东西"——<strong>没有商品、数量和规则</strong>。</p>
+        </div>
+        <div class="block reveal d2">
+            <div class="block-label">推荐结构</div>
+            <div class="steps">
+                <span class="step">场景</span><span class="step-arrow">→</span>
+                <span class="step">功能</span><span class="step-arrow">→</span>
+                <span class="step">规则</span><span class="step-arrow">→</span>
+                <span class="step">边界情况</span><span class="step-arrow">→</span>
+                <span class="step hot">验收方法</span>
+            </div>
+            <p style="margin-top:18px"><strong>示例：</strong>"登录用户能把商品加入购物车；重复添加则累加数量；数量小于 1 时拒绝；其他用户看不到这条记录；给出测试。"</p>
+        </div>
+    </div>
+    <div class="prompt-card reveal d3">
+        <span class="prompt-label">模块提示词</span>
+        <p>举例（这段不用复制）：请把"做一个购物车"改写成可执行的开发需求，明确用户操作、输入和输出、重复添加规则、权限、错误提示和至少 3 个验收场景。</p>
+    </div>
+    <div class="pageno"><b>02</b> / 24</div>
+</section>
+
+<!-- ================= Slide 03 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">01</div>
+        <div class="head-main">
+            <div class="kicker">后端基础</div>
+            <h2>后端功能点：接口与路由——页面怎样对应到后端</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="block reveal d1">
+            <div class="block-label">术语与比喻</div>
+            <div class="terms">
+                <div class="term"><b>API 接口</b><span>前后端约定的服务入口</span></div>
+                <div class="term"><b>路由</b><span>"请求地址该交给哪个处理函数"的分配表</span></div>
+            </div>
+            <p style="margin-top:14px">* 浏览商品：前端地址<code>/products</code> ——> 映射后端 <code>/api/products</code></p>
+            <p style="margin-top:14px">* 购物车查看：前端地址<code>/cart</code> ——> 映射后端 <code>/api/cart</code></p>
+            <p style="margin-top:14px">* 评论查看：前端地址<code>/comment</code> ——> 映射后端 <code>/api/comment</code></p>
+            <p style="margin-top:14px">* 下订单：前端地址<code>/orders</code> ——> 映射后端 <code>/api/orders</code></p>
+
+            <p style="margin-top:10px" class="note"><b>边界：</b>前端页面地址 <code>/cart</code> 与后端接口 <code>/api/cart</code> 是两件事。</p>
+        </div>
+        <div class="block tint reveal d2">
+            <div class="block-label">本项目中的位置</div>
+            <ul class="points">
+                <li>商品、账户、评论、购物车、订单接口集中在 <code>routers.py</code></li>
+                <li>管理员接口在 <code>admin_router.py</code></li>
+                <li><code>main.py</code> 负责把路由装进应用</li>
+                <li>输入由 <code>schemas.py</code> 检查</li>
+            </ul>
+        </div>
+    </div>
+    <div class="prompt-card reveal d3">
+        <span class="prompt-label">模块提示词</span>
+        <p>请为商城设计清晰的接口地址：注册、登录、商品列表与详情、购物车增删改查、下单、订单详情和管理员操作。说明每个地址接收什么、返回什么、何时返回错误，并在 FastAPI 中实现路由。</p>
+    </div>
+    <div class="pageno"><b>03</b> / 24</div>
+</section>
+
+<!-- ================= Slide 04 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">04</div>
+        <div class="head-main">
+            <div class="kicker">数据持久化</div>
+            <h2>后端功能点：数据持久化——数据库</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="block reveal d1">
+            <div class="block-label">术语与理由</div>
+            <div class="terms">
+                <div class="term"><b>数据库</b><span>可查询、可长期保存的电子账本</span></div>
+                <div class="term"><b>持久化</b><span>服务重启后数据仍在</span></div>
+            </div>
+            <p style="margin-top:14px">用户、购物车、订单、库存<strong>相互关联</strong>；下单时多处数据必须<strong>一起更新</strong>。关系型数据库（MySQL/PostgreSQL）适合关系明确、需要可靠交易记录的场景。</p>
+        </div>
+        <div class="block tint reveal d2">
+            <div class="block-label">四种方案对比</div>
+            <table class="grid">
+                <tr><th>方案</th><th>问题 / 定位</th></tr>
+                <tr><td><b>内存列表</b></td><td>重启即丢</td></tr>
+                <tr><td><b>CSV 文件</b></td><td>难以安全处理多人同时下单</td></tr>
+                <tr><td><b>SQLite</b></td><td>适合轻量测试（本项目测试库）</td></tr>
+                <tr><td><b>MySQL/PostgreSQL</b></td><td>适合商场等小中型项目</td></tr>
+            </table>
+            <p style="margin-top:12px">默认连接本机 <code>nzw</code> 数据库，业务表在 <code>shop</code> schema；连接地址可配置。</p>
+        </div>
+    </div>
+    <div class="prompt-card reveal d3">
+        <span class="prompt-label">模块提示词</span>
+        <p>请为一个有用户、订单和库存的校园小商城选择数据库，说明最终选择，并让数据库地址可以在每台电脑上单独配置。</p>
+    </div>
+    <div class="pageno"><b>04</b> / 24</div>
+</section>
+
+<!-- ================= Slide 05 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">05</div>
+        <div class="head-main">
+            <div class="kicker">数据建模</div>
+            <h2>数据库：为什么要分库分表，而不放在一起</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="block reveal d1">
+            <div class="block-label">设计思路：一类表 = 一本专用登记簿</div>
+            <table class="grid">
+                <tr><th>库表</th><th>内容</th></tr>
+                <tr><td><b>用户表</b></td><td>身份</td></tr>
+                <tr><td><b>商品表</b></td><td>介绍和价格</td></tr>
+                <tr><td><b>库存表</b></td><td>剩余数量</td></tr>
+                <tr><td><b>购物车表</b></td><td>"打算买"</td></tr>
+                <tr><td><b>订单表</b></td><td>"已经提交的订单"</td></tr>
+            </table>
+        </div>
+        <div class="block tint reveal d2">
+            <div class="block-label">为什么不合并成一张表</div>
+            <p>单表开销大：如果把每次购买都写进一张大表，这张表会被反复查询、写入，<strong>IO开销大</strong>，可能出现死锁，且后期维护，修改表结构，增删改查都有一定影响</p>
+            <div class="block-label" style="margin-top:18px">术语</div>
+            <div class="terms">
+                <div class="term"><b>表</b><span>一类专用登记簿</span></div>
+                <div class="term"><b>一对多</b><span>一个用户可以有多笔订单</span></div>
+            </div>
+            <p style="margin-top:14px"><strong>本项目主要表：</strong><code>users</code> <code>products</code> <code>inventory</code> <code>cart_items</code> <code>orders</code> <code>order_items</code> <code>order_fulfillments</code></p>
+        </div>
+    </div>
+    <div class="prompt-card reveal d3">
+        <span class="prompt-label">模块提示词</span>
+        <p>请为商城设计用户、商品、库存、购物车和订单的数据表。逐表说明保存什么、不保存什么，以及一位用户购买多个商品时各表会新增或修改哪些记录。请用生活中的登记簿作比喻。</p>
+    </div>
+    <div class="pageno"><b>05</b> / 24</div>
+</section>
+
+<!-- ================= Slide 06：ER 图 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">06</div>
+        <div class="head-main">
+            <div class="kicker">数据建模</div>
+            <h2>数据库：ER 图</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="er-wrap">
+        <div class="er-svg-box reveal d1">
+            <!-- 手绘 ER 图：方框=实体，连线=关系 -->
+            <svg viewBox="0 0 1150 560" width="1150" height="560">
+                <!-- 连线层 -->
+                <line class="er-line" x1="180" y1="100" x2="180" y2="150"/>
+                <line class="er-line" x1="180" y1="230" x2="180" y2="280"/>
+                <line class="er-line" x1="260" y1="180" x2="400" y2="120"/>
+                <line class="er-line" x1="260" y1="190" x2="400" y2="250"/>
+                <line class="er-line" x1="260" y1="200" x2="400" y2="400"/>
+                <line class="er-line" x1="700" y1="130" x2="830" y2="90"/>
+                <line class="er-line" x1="620" y1="150" x2="520" y2="120"/>
+                <line class="er-line" x1="620" y1="170" x2="520" y2="400"/>
+                <line class="er-line" x1="520" y1="270" x2="620" y2="330"/>
+                <line class="er-line" x1="520" y1="260" x2="830" y2="230"/>
+                <line class="er-line" x1="500" y1="290" x2="500" y2="470"/>
+                <line class="er-line" x1="620" y1="420" x2="830" y2="420"/>
+                <!-- 关系标签 -->
+                <text class="er-rel" x="192" y="130">保存 1:0..1</text>
+                <text class="er-rel" x="192" y="262">保存 1:n</text>
+                <text class="er-rel" x="292" y="132">拥有 1:n</text>
+                <text class="er-rel" x="300" y="212">提交 1:n</text>
+                <text class="er-rel" x="300" y="320">发表 1:n</text>
+                <text class="er-rel" x="742" y="96">对应 1:1</text>
+                <text class="er-rel" x="540" y="108">加入 1:n</text>
+                <text class="er-rel" x="648" y="292">收到 1:n</text>
+                <text class="er-rel" x="540" y="300">包含 1:n</text>
+                <text class="er-rel" x="620" y="212">记录 1:1</text>
+                <text class="er-rel" x="510" y="380">通知 1:0..1</text>
+                <text class="er-rel" x="700" y="404">附带 1:n</text>
+                <!-- 实体：USER 系（左） -->
+                <rect class="er-box" x="60" y="60" width="200" height="40" rx="4"/>
+                <text class="er-txt" x="80" y="86">DEFAULT_ADDRESS</text>
+                <rect class="er-box hot" x="80" y="150" width="160" height="80" rx="4"/>
+                <text class="er-txt" x="125" y="197">USER</text>
+                <rect class="er-box" x="60" y="280" width="200" height="40" rx="4"/>
+                <text class="er-txt" x="76" y="306">PAYMENT_METHOD</text>
+                <!-- 中间 -->
+                <rect class="er-box" x="400" y="95" width="120" height="40" rx="4"/>
+                <text class="er-txt" x="414" y="121">CART_ITEM</text>
+                <rect class="er-box hot" x="400" y="230" width="120" height="60" rx="4"/>
+                <text class="er-txt" x="432" y="266">ORDER</text>
+                <rect class="er-box" x="400" y="380" width="120" height="40" rx="4"/>
+                <text class="er-txt" x="420" y="406">COMMENT</text>
+                <rect class="er-box" x="380" y="470" width="240" height="40" rx="4"/>
+                <text class="er-txt" x="400" y="496">ORDER_NOTIFICATION</text>
+                <!-- PRODUCT 系（右） -->
+                <rect class="er-box hot" x="620" y="130" width="140" height="60" rx="4"/>
+                <text class="er-txt" x="648" y="166">PRODUCT</text>
+                <rect class="er-box" x="830" y="70" width="140" height="40" rx="4"/>
+                <text class="er-txt" x="852" y="96">INVENTORY</text>
+                <rect class="er-box" x="830" y="210" width="240" height="40" rx="4"/>
+                <text class="er-txt" x="850" y="236">ORDER_FULFILLMENT</text>
+                <rect class="er-box" x="620" y="310" width="140" height="40" rx="4"/>
+                <text class="er-txt" x="640" y="336">ORDER_ITEM</text>
+                <rect class="er-box" x="830" y="400" width="180" height="40" rx="4"/>
+                <text class="er-txt" x="850" y="426">COMMENT_IMAGE</text>
+            </svg>
+        </div>
+        <div>
+            <div class="block reveal d2">
+                <div class="block-label">读图方法</div>
+                <ul class="points">
+                    <li>方框是<strong>数据对象</strong>，连线表示<strong>联系</strong></li>
+                    <li>一个用户 → 多条购物车记录、多个订单</li>
+                    <li>一个订单 → 多条商品明细</li>
+                </ul>
+            </div>
+            <div class="block tint reveal d3" style="margin-top:16px">
+                <div class="block-label">两个细节</div>
+                <ul class="points">
+                    <li><code>ORDER_ITEM</code> 保存名称和价格<strong>快照</strong>，不依赖当前商品记录</li>
+                    <li>评论图片允许<strong>先上传、后绑定</strong>评论</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="prompt-card reveal d4">
+        <span class="prompt-label">模块提示词</span>
+        <p>请为商城画一张 ER 图，至少包含用户、商品、库存、购物车、订单、订单商品、默认地址和评论。标出"一对一"和"一对多"，再用一个用户购买两种商品的例子解释图中的记录怎样产生。</p>
+    </div>
+    <div class="pageno"><b>06</b> / 24</div>
+</section>
+
+<!-- ================= Slide 07 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">07</div>
+        <div class="head-main">
+            <div class="kicker">数据建模</div>
+            <h2>数据库：主键、外键、唯一约束与订单快照</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="block reveal d1">
+            <div class="block-label">术语</div>
+            <div class="terms">
+                <div class="term"><b>主键</b><span>表中一个字段，每条记录的唯一编号，一般是id</span></div>
+                <div class="term"><b>外键</b><span>写在记录上的"关联编号"，表与表之间关联对应</span></div>
+                <div class="term"><b>约束</b><span>数据库自己执行的规则，比如非空约束，唯一约束</span></div>
+            </div>
+            <div class="block-label" style="margin-top:16px">本项目的防错规则</div>
+            <ul class="points">
+                <li>账号<strong>不能重复</strong></li>
+                <li>同一用户的同一商品在购物车<strong>只能有一行</strong></li>
+                <li>库存<strong>不能小于零</strong></li>
+            </ul>
+        </div>
+        <div class="block tint reveal d2">
+            <div class="block-label">订单快照 = 拍下当时的小票</div>
+            <p style="font-size:22px;color:var(--ink);line-height:1.6">今天买时是 <strong>¥10</strong>、地址是 <strong>A</strong>；<br>明天商品涨价、用户改地址 B，<br>旧订单仍显示 <strong>¥10 和 A</strong>。</p>
+            <p style="margin-top:14px"><strong>扩展表：</strong>默认地址、银行卡、评论图片、订单通知、操作日志各有自己的记录，不混进订单主表。</p>
+        </div>
+    </div>
+    <div class="prompt-card reveal d3">
+        <span class="prompt-label">模块提示词</span>
+        <p>请在商城数据库中加入记录编号、关联关系和防重复规则。重点保证账号唯一、购物车商品不重复、库存不为负，并在下单时保存商品价格及配送地址快照。用"改价"和"改地址"两个例子验证旧订单不会变化。</p>
+    </div>
+    <div class="pageno"><b>07</b> / 24</div>
+</section>
+
+<!-- ================= Slide 08 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">08</div>
+        <div class="head-main">
+            <div class="kicker">可靠性</div>
+            <h2>数据库：事务</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="block tint reveal d1">
+            <div class="block-label">术语与比喻</div>
+            <div class="terms">
+                <div class="term"><b>事务（Transaction）</b><span>我们把一个动作导致的一系列数据库的操作称为事务，要么一起成功，要么一起取消</span></div>
+                <div class="term"><b>提交（Commit）</b>     <span>提交一系列数据库操作语句</span></div>
+                <div class="term"><b>回滚（Rollback）</b>   <span>执行过程中有如一条语句执行失败，则把之前成功的全部返回提交前的状态</span></div>
+
+            </div>
+            <p style="margin-top:16px;font-size:23px;color:var(--ink);font-weight:700">店员不能只收钱不出单，<br>也不能只扣库存不记购买者。</p>
+            <p style="margin-top:12px"><strong>多人同时买：</strong>读取并锁定相关库存记录，避免同一件商品被同时卖给两个人。</p>
+        </div>
+        <div class="block reveal d2">
+            <div class="block-label">本项目：一次事务里的 6 件事</div>
+            <div class="steps fx-pop" style="gap:8px">
+                <span class="step">检查库存</span><span class="step-arrow">→</span>
+                <span class="step">扣库存</span><span class="step-arrow">→</span>
+                <span class="step">写订单</span><span class="step-arrow">→</span>
+                <span class="step">写明细+配送快照</span><span class="step-arrow">→</span>
+                <span class="step">写通知记录</span><span class="step-arrow">→</span>
+                <span class="step hot">移除已购购物车条目</span>
+            </div>
+            <p style="margin-top:18px">全部成功后<strong>统一提交</strong>；库存不足则<strong>整体回滚</strong>。</p>
+            <p> </p>
+            <a class="ext-link" href="./database-slides.html" target="_blank" rel="noopener">当下主流数据库介绍</a>
+        </div>
+    </div>
+    <div class="prompt-card reveal d3">
+        <span class="prompt-label">模块提示词</span>
+        <p>请把"检查库存、计算金额、创建订单、扣库存、删除已购买购物车条目"放进同一次数据库事务。若任何一步失败，所有数据保持下单前状态。再模拟两个人争买最后一件商品，验证不会超卖。</p>
+    </div>
+    <div class="pageno"><b>08</b> / 24</div>
+</section>
+
+<!-- ================= Slide 09 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">09</div>
+        <div class="head-main">
+            <div class="kicker">账户体系</div>
+            <h2>后端功能点：用户注册</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="block reveal d1">
+            <div class="block-label">术语</div>
+            <div class="terms">
+                <div class="term"><b>注册账号</b><span>在登录界面发起账号的注册，输入账号和密码</span></div>
+                <div class="term"><b>发起校验</b><span>用户登录系统前的检查</span></div>
+                <div class="term"><b>密码哈希</b><span>只能验证、不能还原的密码指纹</span></div>
+            </div>
+            <div class="block-label" style="margin-top:16px">实现流程</div>
+            <div class="steps">
+                <span class="step">检查输入</span><span class="step-arrow">→</span>
+                <span class="step">查重</span><span class="step-arrow">→</span>
+                <span class="step">保存密码哈希</span><span class="step-arrow">→</span>
+                <span class="step hot">告知结果</span>
+            </div>
+            <p style="margin-top:14px">不能只依赖页面检查——<strong>防止绕过页面直接调用接口，查询信息</strong>。</p>
+        </div>
+        <div class="block tint reveal d2">
+            <div class="block-label">本项目规则</div>
+            <table class="grid">
+                <tr><th>字段</th><th>规则</th></tr>
+                <tr><td><b>账号</b></td><td>≥3 位，仅限字母/数字/下划线，不能重复</td></tr>
+                <tr><td><b>密码</b></td><td>≥9 位，含大小写字母+数字+特殊字符，两次输入一致</td></tr>
+                <tr><td><b>扩展</b></td><td>后续可增加三方验证登录（如微信登录、淘宝登录）、发送验证码至手机登录等功能</td></tr>
+            </table>
+        </div>
+    </div>
+    <div class="prompt-card reveal d3">
+        <span class="prompt-label">模块提示词</span>
+        <p>请实现账号注册。账号至少 3 位，只能包含字母、数字、下划线，且不能重复；密码至少 9 位，同时包含大小写字母、数字和特殊字符，两次输入必须一致。密码只保存哈希，不保存原文。给出成功、弱密码、两次不一致和重复账号的测试。</p>
+    </div>
+    <div class="pageno"><b>09</b> / 24</div>
+</section>
+
+<!-- ================= Slide 10 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">10</div>
+        <div class="head-main">
+            <div class="kicker">账户体系</div>
+            <h2>后端功能点：登录、鉴权与角色权限</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="block reveal d1">
+            <div class="block-label">术语</div>
+            <div class="terms">
+                <div class="term"><b>认证</b><span>确认"你是谁"</span></div>
+                <div class="term"><b>鉴权</b><span>确认"你能做什么"</span></div>
+                <div class="term"><b>JWT</b><span>登录后携带的限时凭证</span></div>
+            </div>
+            <p style="margin-top:16px;font-size:23px;color:var(--ink);font-weight:700">登录像在门口核对身份；<br>普通顾客与店长拿到的钥匙能开不同的门；<br>店长登录Admin账户，普通用户登录一般账户，界面都不一致</p>
+        </div>
+        <div class="block tint reveal d2">
+            <div class="block-label">本项目实现</div>
+            <ul class="points">
+                <li>登录核对密码哈希，签发 <strong>12 小时</strong>凭证</li>
+                <li>每个需登录的请求都验凭证和用户状态</li>
+                <li>管理员接口还检查 <code>admin</code> 角色</li>
+                <li><strong>停用用户</strong>即使持有旧凭证也不能继续操作</li>
+                <li>顾客只能查看自己的订单、地址、银行卡和购物车</li>
+            </ul>
+        </div>
+    </div>
+    <div class="prompt-card reveal d3">
+        <span class="prompt-label">模块提示词</span>
+        <p>请实现登录凭证、登录状态校验和顾客/管理员权限。顾客只能操作自己的数据；管理员可以进入管理接口；被停用用户的旧登录凭证立即失效。分别测试未登录、普通顾客、管理员和停用用户。</p>
+    </div>
+    <div class="pageno"><b>10</b> / 24</div>
+</section>
+
+<!-- ================= Slide 11 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">11</div>
+        <div class="head-main">
+            <div class="kicker">商品域</div>
+            <h2>后端功能点：商品上架、下架与价格管理</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="block reveal d1">
+            <div class="block-label">核心原理：两类信息分开管</div>
+            <ul class="points">
+                <li>在admin账号的权限下</li>
+            </ul>
+            <table class="grid">
+                <tr><th>商品信息</th><th>库存信息</th></tr>
+                <tr><td>介绍、价格、图片、是否在售</td><td>剩余件数</td></tr>
+            </table>
+            <div class="block-label" style="margin-top:16px">关键规则</div>
+            <ul class="points">
+                <li>下架商品<strong>不能再</strong>加入购物车或提交订单</li>
+                <li>修改当前价格<strong>不应修改</strong>旧订单的价格快照</li>
+            </ul>
+        </div>
+        <div class="block tint reveal d2">
+            <div class="block-label">本项目实现</div>
+            <ul class="points">
+                <li>顾客只看到<strong>实时的上架商品</strong></li>
+                <li>管理员可上传商品图片（后续可加视频）、发布新品、补货、下架、重新上架和调价</li>
+                <li>低库存提示阈值：<strong>5 件</strong></li>
+                <li>库存 0 显示售罄，1～5 件显示低库存</li>
+                <li>所有改动立即生效，如果用户真正下单某下架商品，在确认时会告知商品已下架</li>
+            </ul>
+        </div>
+    </div>
+    <div class="prompt-card reveal d3">
+        <span class="prompt-label">模块提示词</span>
+        <p>请实现商城商品列表、详情，以及管理员发布新品、补货、下架、重新上架和调价。顾客只看到在售商品；下架商品不能购买；库存为 0 显示售罄，1～5 件显示低库存。用改价后的旧订单检验价格快照。</p>
+    </div>
+    <div class="pageno"><b>11</b> / 24</div>
+</section>
+
+<!-- ================= Slide 12 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">12</div>
+        <div class="head-main">
+            <div class="kicker">商品域</div>
+            <h2>后端功能点：购物车</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="block tint reveal d1">
+            <div class="block-label">术语</div>
+            <div class="term" style="font-size:22px"><b>购物车条目</b><span>记录"某人打算买某商品多少件"，<strong>还没有实际扣库存</strong></span></div>
+            <div class="block-label" style="margin-top:18px">边界</div>
+            <ul class="points">
+                <li>购物车可以<strong>暂时超过库存</strong>，能否购买在下单时重新检查</li>
+                <li>不能操作<strong>别人的</strong>条目</li>
+            </ul>
+        </div>
+        <div class="block reveal d2">
+            <div class="block-label">本项目实现</div>
+            <ul class="points">
+                <li>添加、查看、修改数量、删除</li>
+                <li>重复添加同一商品时<strong>合并数量</strong></li>
+                <li>结算时可<strong>只勾选其中几项</strong></li>
+            </ul>
+        </div>
+    </div>
+    <div class="prompt-card reveal d3">
+        <span class="prompt-label">模块提示词</span>
+        <p>请实现每位用户独立的购物车。重复添加同一商品时累加数量；数量必须大于零；支持只选部分商品结算。添加或修改购物车时不扣库存，但下单前必须再次核对库存。测试两个用户的数据隔离。</p>
+    </div>
+    <div class="pageno"><b>12</b> / 24</div>
+</section>
+
+<!-- ================= Slide 13 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">13</div>
+        <div class="head-main">
+            <div class="kicker">交易准备</div>
+            <h2>后端功能点：默认地址与模拟支付方式</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="block reveal d1">
+            <div class="block-label">核心原理</div>
+            <p><strong>默认地址</strong>是用户经常使用的地址；<strong>订单地址</strong>是某次购买的历史记录——两者不能混为一谈。</p>
+            <div class="block-label" style="margin-top:14px">本项目实现</div>
+            <ul class="points">
+                <li>保存<strong>一个</strong>默认地址，结算时可带入</li>
+                <li>配送：线下自提 / 顺丰次日达 / 其他快递，这里可以介入第三方服务，例如快递物流信息等，需要和快递平台对接打通</li>
+                <li>支付：微信 / 支付宝 / 已保存银行卡</li>
+            </ul>
+        </div>
+        <div class="block tint reveal d2">
+            <div class="block-label">银行卡处理</div>
+            <div class="steps">
+                <span class="step">输入时检查卡号</span><span class="step-arrow">→</span>
+                <span class="step">保存时加密</span><span class="step-arrow">→</span>
+                <span class="step hot">只显示末四位</span>
+            </div>
+            <p style="margin-top:16px" class="note"><b>明确边界：</b>只记录支付选择，<b>不接入</b>微信、支付宝或银行的真实扣款接口。</p>
+            <p style="margin-top:10px">要讲"真正拉起支付"→ 选讲 <strong>Slide 21～24</strong>（未来接入方案，非当前功能）。</p>
+        </div>
+    </div>
+    <div class="prompt-card reveal d3">
+        <span class="prompt-label">模块提示词</span>
+        <p>请实现默认地址和模拟支付选择。用户可保存一个默认地址，填写收件人、手机号、省市区和详细地址；订单保存本次填写的地址，日后改默认地址不影响旧订单。支付方式有微信、支付宝和已保存银行卡；添加卡号时做有效性检查，保存时加密，页面只展示末四位。不要实现真实扣款。</p>
+    </div>
+    <div class="pageno"><b>13</b> / 24</div>
+</section>
+
+<!-- ================= Slide 14 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">14</div>
+        <div class="head-main">
+            <div class="kicker">交易核心</div>
+            <h2>后端功能点：下单，把购物意向变成正式记录</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="block reveal d1">
+            <div class="block-label">下单五步</div>
+            <div class="steps fx-pop" style="gap:8px">
+                <span class="step">选购物车条目</span><span class="step-arrow">→</span>
+                <span class="step">检查在售+库存</span><span class="step-arrow">→</span>
+                <span class="step">算金额和运费</span><span class="step-arrow">→</span>
+                <span class="step">保存订单及快照</span><span class="step-arrow">→</span>
+                <span class="step hot">扣库存</span>
+            </div>
+            <div class="block-label" style="margin-top:18px">输出</div>
+            <p>订单号、总价、商品明细、配送与支付选择、通知状态；<strong>顾客只能读取自己的订单</strong>。</p>
+        </div>
+        <div class="block tint reveal d2">
+            <div class="block-label">本项目运费规则</div>
+            <table class="grid">
+                <tr><th>配送方式</th><th>运费</th></tr>
+                <tr><td><b>顺丰次日达</b></td><td>¥5</td></tr>
+                <tr><td><b>线下自提</b></td><td>免费</td></tr>
+                <tr><td><b>圆通 / 国通 / 申通 / 韵达</b></td><td>免费</td></tr>
+            </table>
+            <p style="margin-top:12px">自提点：常州市天宁区文化广场小行星桌游社。</p>
+            <a class="ext-link" href="./slides-html/index.html" target="_blank" rel="noopener">在你的服务上使用第三方能力</a>
+        </div>
+    </div>
+    <div class="prompt-card reveal d3">
+        <span class="prompt-label">模块提示词</span>
+        <p>请实现从购物车选商品下单。总价按下单时的商品价格与运费计算；顺丰加 ¥5，其他方式免费。库存不足或商品已下架时拒绝下单；成功后生成订单号和购买快照。只允许本人查询订单详情，并写测试核对金额。</p>
+    </div>
+    <div class="pageno"><b>14</b> / 24</div>
+</section>
+
+<!-- ================= Slide 15 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">15</div>
+        <div class="head-main">
+            <div class="kicker">交易核心</div>
+            <h2>后端功能点：库存管理</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="block tint reveal d1">
+            <div class="block-label">生活案例</div>
+            <p style="margin-top:16px">下单时需要对库存表进行校验，确定有库存以后才能进行下一步。</p>
+            <p style="font-size:24px;color:var(--ink);font-weight:700;line-height:1.55">商品页显示"还剩 1 件"只是某一刻的照片；<br>提交订单时必须<strong style="color:var(--accent)">再次读取库存</strong>。</p>
+            <p style="margin-top:16px"><strong>生活例子：</strong>两位顾客都看到最后一件，最终只能有一位成功下单。</p>
+        </div>
+        <div class="block reveal d2">
+            <div class="block-label">本项目实现</div>
+            <ul class="points">
+                <li>库存<strong>单独保存</strong>，不与商品介绍混放</li>
+                <li>下单时<strong>核对并扣减</strong></li>
+                <li>管理员可<strong>补货</strong></li>
+                <li>如果库存为0的商品，显示为“<strong>暂时缺货</strong>”，同时可发送提醒给管理员</li>
+                <li>数据库约束防止出现<strong>负数</strong></li>
+            </ul>
+        </div>
+    </div>
+    <div class="prompt-card reveal d3">
+        <span class="prompt-label">模块提示词</span>
+        <p>请实现商品库存的显示、下单扣减和管理员补货。加入购物车不扣库存；下单时重新检查。模拟两个顾客购买最后一件商品，确保最终只有一笔订单成功，库存不会变成负数。</p>
+    </div>
+    <div class="pageno"><b>15</b> / 24</div>
+</section>
+
+<!-- ================= Slide 16 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">16</div>
+        <div class="head-main">
+            <div class="kicker">内容与安</div>
+            <h2>后端功能点：商品评论、图片与内容安全</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="block reveal d1">
+            <div class="block-label">术语</div>
+            <div class="terms">
+                <div class="term"><b>富文本</b><span>填写的评论是富文本格式的，可以加粗、颜色、倾斜、下划线等，还可上传图片</span></div>
+                <div class="term"><b>XSS</b><span>识别把危险网页代码混进评论的攻击</span></div>
+            </div>
+            <div class="block-label" style="margin-top:16px">关键点</div>
+            <ul class="points">
+                <li>评论保存<strong>发布时的作者名</strong></li>
+                <li>只允许<strong>已上传且尚未被其他评论使用</strong>的图片</li>
+                <li>评论可以模仿淘宝对商品进行<strong>打星</strong>等，后续作为商品分析的重要数据来源</li>
+            </ul>
+        </div>
+        <div class="block tint reveal d2">
+            <div class="block-label">本项目实现</div>
+            <ul class="points">
+                <li>评论<strong>公开读取</strong>，登录后可发布</li>
+                <li>图片单张 ≤ <strong>5 MB</strong>，仅 JPG / PNG / WebP / GIF</li>
+                <li>发布时确认图片<strong>归当前用户所有</strong></li>
+                <li>清理危险 HTML，按最新评论优先展示</li>
+            </ul>
+        </div>
+    </div>
+    <div class="prompt-card reveal d3">
+        <span class="prompt-label">模块提示词</span>
+        <p>请实现商品评论和图片上传。允许简单排版及图片，但清理脚本等危险内容；图片仅接受 JPG、PNG、WebP、GIF，单张不超过 5 MB。用户只能使用自己上传且未被使用过的图片。按最新评论优先展示。测试非法图片、引用他人图片和恶意网页代码。</p>
+    </div>
+    <div class="pageno"><b>16</b> / 24</div>
+</section>
+
+<!-- ================= Slide 17 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">17</div>
+        <div class="head-main">
+            <div class="kicker">外部协同</div>
+            <h2>后端功能点：第三方服务接入——飞书</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="block reveal d1">
+            <div class="block-label">术语</div>
+            <div class="terms">
+                <div class="term"><b>飞书机器人</b><span>开放飞书机器人，实现订单信息发送飞书提醒</span></div>
+                <div class="term"><b>异步任务</b><span>订单已建立后继续做别的事而不需要等待飞书通知发送完成</span></div>
+                <div class="term"><b>重试</b><span>外部服务暂时失败后再发送</span></div>
+            </div>
+            <div class="block-label" style="margin-top:16px">边界</div>
+            <ul class="points">
+                <li>只有配置了飞书应用与会话才发送</li>
+                <li>需要配置好环境变量：app_key / app_secret</li>
+            </ul>
+            <img class="shot" src="feishu-order-card.jpeg" alt="飞书订单通知卡片实际效果">
+        </div>
+        <div class="block tint reveal d2">
+            <div class="block-label">本项目实现</div>
+            <ul class="points">
+                <li>创建订单后发送<strong>飞书交互卡片</strong>：订单号、商品、账号、手机号、配送方式及地址</li>
+                <li>发送失败<strong>不取消订单</strong>，通知记录保持待发送</li>
+                <li>启动时 + 之后每 <strong>5 分钟</strong>重试，最多 <strong>6 次</strong></li>
+            </ul>
+        </div>
+    </div>
+    <div class="prompt-card reveal d3">
+        <span class="prompt-label">模块提示词</span>
+        <p>请在订单创建成功后给店主发送飞书订单卡片，显示订单号、商品数量、账号、手机号和配送信息。网络失败不能影响下单；记录发送状态和失败原因，启动时及之后每 5 分钟重试待发送通知，最多尝试 6 次。没有飞书配置时商城仍可运行。用模拟网络响应测试成功与失败，不向真实群发送测试订单。</p>
+    </div>
+    <div class="pageno"><b>17</b> / 24</div>
+</section>
+
+<!-- ================= Slide 18 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">18</div>
+        <div class="head-main">
+            <div class="kicker">经营管理</div>
+            <h2>后端功能点：管理员界面与操作</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="block reveal d1">
+            <div class="block-label">术语</div>
+            <div class="terms">
+                <div class="term"><b>操作</b><span>管理员可以对用户账号进行管理，对商品进行管理</span></div>
+                <div class="term"><b>看板</b><span>把多张表汇总成经营信息</span></div>
+                <div class="term"><b>审计日志</b><span>记录"谁在什么时候改了什么"</span></div>
+            </div>
+            <p style="margin-top:16px" class="note"><b>注意：</b>看板里的"当前库存"是<b>现在还剩多少</b>，不是订单发生时的库存快照。</p>
+        </div>
+        <div class="block tint reveal d2">
+            <div class="block-label">本项目实现</div>
+            <ul class="points">
+                <li>今日订单和销售额、用户数、在售商品数</li>
+                <li>缺货与低库存、时间趋势、热销商品、订单明细</li>
+                <li>日期按<strong>中国时间</strong>统计</li>
+                <li>管理员可停用/恢复用户、管理商品</li>
+            </ul>
+        </div>
+    </div>
+    <div class="prompt-card reveal d3">
+        <span class="prompt-label">模块提示词</span>
+        <p>请做仅管理员可见的经营看板，展示今日订单与销售额、在售和缺货商品、日期趋势、热销商品与订单明细。所有停用用户、补货、调价和上下架操作都记录操作者、目标、修改前后内容。普通顾客访问时拒绝。</p>
+    </div>
+    <div class="pageno"><b>18</b> / 24</div>
+</section>
+
+<!-- ================= Slide 19 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">19</div>
+        <div class="head-main">
+            <div class="kicker">质量保障</div>
+            <h2>后端功能测试：如何知道后端真的可用</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="block reveal d1">
+            <div class="block-label">执行三种测试</div>
+            <div class="terms">
+                <div class="term"><b>单元测试</b><span>检查一个小规则实现的如何</span></div>
+                <div class="term"><b>接口测试</b><span>像真实用户一样发请求</span></div>
+                <div class="term"><b>集成测试</b><span>检查多个模块一起工作</span></div>
+            </div>
+            <div class="block-label" style="margin-top:16px">验收例子</div>
+            <ul class="points">
+                <li>库存 12，买 13 应<strong>失败</strong>，库存仍是 12</li>
+                <li>管理员停用用户后，原有登录凭证<strong>不能继续使用</strong></li>
+                <li>商品显示售罄后，<strong>不能再继续下单</strong></li>
+                <li>正常下单以后，<strong>是否库存发生正确的变化</strong></li>
+            </ul>
+        </div>
+        <div class="block tint reveal d2">
+            <div class="block-label">本项目现状</div>
+            <ul class="points">
+                <li><code>pytest</code> 使用<strong>独立的测试数据库</strong>和临时上传目录</li>
+                <li>覆盖注册、购物车下单、库存回滚、评论图片、地址和卡号、管理员权限与看板</li>
+                <li>主要是接口/集成测试，不能笼统称为完整单元测试体系</li>
+            </ul>
+        </div>
+    </div>
+    <div class="prompt-card reveal d3">
+        <span class="prompt-label">模块提示词</span>
+        <p>请给商城写自动测试，使用独立临时数据库，不修改我的开发数据。至少覆盖注册失败、权限隔离、正常下单、库存不足时回滚、旧订单价格和地址不变、评论安全、飞书发送失败、管理员停用用户。运行测试并报告通过与失败的用例。</p>
+    </div>
+    <div class="pageno"><b>19</b> / 24</div>
+</section>
+
+<!-- ================= Slide 20 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">20</div>
+        <div class="head-main">
+            <div class="kicker">收尾</div>
+            <h2>课堂复刻路线与真实边界</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="block reveal d1">
+            <div class="block-label">推荐顺序</div>
+            <div class="steps" style="gap:7px">
+                <span class="step">启动服务</span><span class="step-arrow">→</span>
+                <span class="step">数据库与ER图</span><span class="step-arrow">→</span>
+                <span class="step">注册登录</span><span class="step-arrow">→</span>
+                <span class="step">商品</span><span class="step-arrow">→</span>
+                <span class="step">购物车</span><span class="step-arrow">→</span>
+                <span class="step">地址</span><span class="step-arrow">→</span>
+                <span class="step">下单与库存</span><span class="step-arrow">→</span>
+                <span class="step">评论</span><span class="step-arrow">→</span>
+                <span class="step">飞书</span><span class="step-arrow">→</span>
+                <span class="step">管理员</span><span class="step-arrow">→</span>
+                <span class="step hot">测试</span>
+            </div>
+            <p style="margin-top:16px"><strong>每轮提示词都写：</strong>功能目标、数据输入、成功输出、失败情况、权限、测试、本机运行说明。</p>
+        </div>
+        <div class="block tint reveal d2">
+            <div class="block-label">当前项目的真实边界</div>
+            <ul class="points">
+                <li>支付是<strong>模拟选择</strong>，没有扣款</li>
+                <li>订单创建 ≠ 已付款或已发货</li>
+                <li>飞书通知失败<strong>不影响订单</strong></li>
+                <li>管理员账户需人工配置，普通注册不会成为管理员</li>
+            </ul>
+            <p style="margin-top:12px"><strong>课堂练习：</strong>先写"用户能买到最后一件商品"的提示词，再补充"两人同时买、库存不足、下架、飞书失败"四个边界场景。</p>
+        </div>
+    </div>
+    <div class="prompt-card reveal d3">
+        <span class="prompt-label">模块提示词</span>
+        <p>请按教学顺序从零复刻分子项链商城后端。每完成一个模块，先展示功能，再解释关键术语，最后给出可在我电脑上运行的步骤和测试结果。明确区分"当前已实现"和"正式商用还需要补充"的能力，不要把模拟支付写成真实收款。</p>
+    </div>
+    <div class="pageno"><b>20</b> / 24</div>
+</section>
+
+<!-- ================= 章节分隔：附加选讲 ================= -->
+<section class="slide section-slide">
+    <div class="sec-num">21–24</div>
+    <h2 class="reveal d1">附加选讲：真实支付接入</h2>
+    <p class="reveal d2">以下为<strong>未来接入方案</strong>，不是当前代码已有的功能。接入条件以申请时的平台审核结果为准。</p>
+</section>
+
+<!-- ================= Slide 21 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">21<small>选讲</small></div>
+        <div class="head-main">
+            <div class="kicker">真实支付 · 准备</div>
+            <h2>真实支付不是加一个按钮：接入前要准备什么</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="block reveal d1">
+            <div class="block-label">开通条件（向平台申请）</div>
+            <ul class="points">
+                <li>可完成<strong>商户入驻和签约</strong>的经营主体、结算账户</li>
+                <li>真实可买到的商品</li>
+                <li>资格、类目和材料由<strong>平台审核</strong>，不能靠代码绕过</li>
+            </ul>
+            <p style="margin-top:12px"><strong>先决定场景：</strong>电脑网页 / 手机浏览器 / 微信内网页 / App，对应不同产品权限与唤起方式。</p>
+        </div>
+        <div class="block tint reveal d2">
+            <div class="block-label">技术条件（本机可准备）</div>
+            <ul class="points">
+                <li>网站域名、<strong>HTTPS</strong>、公网可访问的支付通知地址</li>
+                <li>商户号 / 应用 ID、签名密钥或证书</li>
+                <li><strong>密钥留在服务端</strong>，不能写进网页或 PPT</li>
+            </ul>
+            <p style="margin-top:12px" class="note"><b>比喻：</b>先向收银机构开户、领收银机和钥匙，再谈怎样把收银机接到店里。</p>
+        </div>
+    </div>
+    <div class="prompt-card reveal d3">
+        <span class="prompt-label">模块提示词</span>
+        <p>我有一个 FastAPI 商城，现有订单只有模拟支付。请先不要写代码。按"电脑网页、手机浏览器、微信内网页"列出接入微信支付、支付宝和银行卡支付分别需要的商户资格、签约产品、域名/HTTPS、回调地址、应用与密钥配置。逐项标记"我必须向平台申请"和"开发者可在本机准备"，并注明具体准入以官方审核为准。</p>
+    </div>
+    <div class="src reveal d4">依据：微信支付开发参数 pay.wechatpay.cn/doc/v3/merchant/4013070756 · 支付宝网页应用接入 open.alipay.com/module/webApp · 银联商户入网 open.unionpay.com</div>
+    <div class="pageno"><b>21</b> / 24</div>
+</section>
+
+<!-- ================= Slide 22 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">22<small>选讲</small></div>
+        <div class="head-main">
+            <div class="kicker">真实支付 · 拉起收银台</div>
+            <h2>微信与支付宝：用户点击后怎样拉起收银台</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body single">
+        <div class="block reveal d1">
+            <table class="grid">
+                <tr><th style="width:240px">场景</th><th>具体步骤</th><th style="width:280px">用户看到什么</th></tr>
+                <tr><td><b>电脑网页 · 微信</b></td><td>开通权限；后端用本地订单号和<strong>后端计算的金额</strong>发起 Native 下单；收到 <code>code_url</code> 后展示二维码</td><td>微信扫码、核对金额并付款</td></tr>
+                <tr><td><b>手机浏览器 · 微信</b></td><td>确认微信外浏览器、已开通 H5 权限并配置域名；后端下单得 <code>h5_url</code>；页面跳转</td><td>唤起微信支付页面</td></tr>
+                <tr><td><b>微信内网页</b></td><td>开通适用的 JSAPI 产品，准备已绑定应用身份、授权域名和用户标识</td><td>微信内调起收银台</td></tr>
+                <tr><td><b>电脑网站 · 支付宝</b></td><td>创建并审核应用、开通网站支付、配置密钥；后端按订单生成支付请求，浏览器前往支付宝收银台</td><td>登录支付宝或扫码付款</td></tr>
+            </table>
+        </div>
+    </div>
+    <div class="body" style="padding-top:18px">
+        <div class="block tint reveal d2">
+            <div class="term" style="font-size:20px"><b>预支付单</b><span>支付平台为这次订单准备的收款入口；得到二维码或链接只表示"可以付款"，<strong>不表示付款成功</strong>。</span></div>
+        </div>
+        <div class="block reveal d3">
+            <p><strong>注意：</strong>支付宝手机网站应选择与手机网页匹配的已签约产品，电脑网站、手机网站和 App 支付接口<strong>不能混用</strong>。</p>
+        </div>
+    </div>
+    <div class="prompt-card reveal d4">
+        <span class="prompt-label">模块提示词</span>
+        <p>请给这个网页商城写一份真实支付接入方案，不写代码。分别说明电脑网页微信扫码支付、手机浏览器微信 H5 支付、微信内网页支付、支付宝电脑/手机网页支付应选择的官方产品；逐步列出"创建待付款订单→后端按数据库金额请求支付平台→把二维码或跳转信息给前端→用户完成付款"。不要把拿到支付链接当作支付成功，并列出各场景需要另行开通的权限。</p>
+    </div>
+    <div class="pageno"><b>22</b> / 24</div>
+</section>
+
+<!-- ================= Slide 23 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">23<small>选讲</small></div>
+        <div class="head-main">
+            <div class="kicker">真实支付 · 银行卡</div>
+            <h2>银行卡：让收单机构处理卡号</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="block reveal d1">
+            <div class="block-label">推荐路径：托管收银台</div>
+            <p>申请<strong>银联在线网关支付</strong>，或选择有资质的收单机构/支付服务商的托管收银台：商户后端发起交易 → 浏览器跳到对方页面 → 顾客在<strong>该页面</strong>输入卡号和验证码 → 回到商户网站。</p>
+            <div class="terms" style="margin-top:14px">
+                <div class="term"><b>收单机构</b><span>受理商户银行卡交易的机构</span></div>
+                <div class="term"><b>PCI DSS</b><span>支付卡数据安全标准</span></div>
+            </div>
+        </div>
+        <div class="block tint reveal d2">
+            <div class="block-label">接入七步</div>
+            <div class="steps" style="gap:7px">
+                <span class="step">确认商户和产品准入</span><span class="step-arrow">→</span>
+                <span class="step">签约与测试</span><span class="step-arrow">→</span>
+                <span class="step">取得商户编号/签名材料</span><span class="step-arrow">→</span>
+                <span class="step">发送订单号与金额</span><span class="step-arrow">→</span>
+                <span class="step hot">跳转托管收银台</span><span class="step-arrow">→</span>
+                <span class="step">验证后台通知</span><span class="step-arrow">→</span>
+                <span class="step">查询与对账</span>
+            </div>
+            <p style="margin-top:14px"><strong>为什么：</strong>现有"保存加密卡号"<strong>不能直接变成</strong>真实扣款能力；自建页面不应接收完整卡号、有效期、CVV 或短信验证码。</p>
+        </div>
+    </div>
+    <div class="prompt-card reveal d3">
+        <span class="prompt-label">模块提示词</span>
+        <p>请为分子项链商城规划银行卡在线支付，优先采用银联或合规收单服务商的托管支付页面。说明入网与签约条件、商户端发起交易、用户跳转、后台通知、退款和对账的步骤。请评估现有"保存完整银行卡号密文"的设计该如何停用或迁移；新流程不得在自建页面收集卡号、CVV、有效期和短信验证码。只给方案，不写代码或声称已经取得支付资质。</p>
+    </div>
+    <div class="src reveal d4">依据：银联在线网关支付 open.unionpay.com/tjweb/acproduct/list?apiSvcId=448 · PCI SSC 对外包支付的说明 pcisecuritystandards.org</div>
+    <div class="pageno"><b>23</b> / 24</div>
+</section>
+
+<!-- ================= Slide 24 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">24<small>选讲</small></div>
+        <div class="head-main">
+            <div class="kicker">真实支付 · 结果确认</div>
+            <h2>付款结果：以后台确认，不以页面跳转为准</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="block reveal d1">
+            <div class="block-label">后台确认六步</div>
+            <div class="steps fx-pop" style="gap:7px">
+                <span class="step">平台发来通知</span><span class="step-arrow">→</span>
+                <span class="step">核对签名/解密</span><span class="step-arrow">→</span>
+                <span class="step">对照订单号·身份·金额·状态</span><span class="step-arrow">→</span>
+                <span class="step hot">仅第一次成功改为已支付</span><span class="step-arrow">→</span>
+                <span class="step">重复通知不重复处理</span><span class="step-arrow">→</span>
+                <span class="step">丢失则主动查单+定期对账</span>
+            </div>
+            <div class="terms" style="margin-top:16px">
+                <div class="term"><b>回调</b><span>支付平台主动通知商城</span></div>
+                <div class="term"><b>验签</b><span>确认消息来源</span></div>
+                <div class="term"><b>幂等</b><span>重复通知处理多次，结果仍与处理一次相同</span></div>
+            </div>
+        </div>
+        <div class="block tint reveal d2">
+            <div class="block-label">订单流程要改什么</div>
+            <ul class="points">
+                <li>订单先成为"<strong>待支付</strong>"，记录渠道、商户订单号、平台交易号、金额与时间</li>
+                <li>库存保留多久、超时怎样释放，需要<strong>明确规则</strong></li>
+                <li>不能沿用"创建订单 = 完成交易"的理解</li>
+                <li>与飞书约定"<strong>下单即通知</strong>"还是"<strong>付款成功后通知</strong>"，卡片文案区分待付款/已付款</li>
+            </ul>
+        </div>
+    </div>
+    <div class="prompt-card reveal d3">
+        <span class="prompt-label">模块提示词</span>
+        <p>请只设计、不实现商城从模拟支付升级为真实支付的订单状态流程。列出待付款、已支付、已关闭、退款中的状态变化；说明订单金额必须由后端计算，支付成功只能依据已验签的后台通知或平台查单，不能依据浏览器返回页。设计重复回调、通知丢失、超时释放库存、支付与关单竞态、退款及每日对账的处理规则，并指出现有订单和飞书通知逻辑需如何调整。</p>
+    </div>
+    <div class="pageno"><b>24</b> / 24</div>
+</section>
+
+<!-- ================= 结尾：备课核对 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">附<small>APPENDIX</small></div>
+        <div class="head-main">
+            <div class="kicker">备课核对</div>
+            <h2>讲稿对应的项目文件</h2>
+        </div>
+        <div class="crumb">分子项链商城 · 后端设计 2</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body wide-left">
+        <div class="block reveal d1">
+            <table class="grid" style="font-size:17px">
+                <tr><th>讲述内容</th><th>主要代码位置</th></tr>
+                <tr><td>应用入口、路由装配、跨域、定时重试</td><td><code>backend/app.py</code> <code>shop_api/main.py</code></td></tr>
+                <tr><td>顾客接口、注册登录、购物车、下单、评论</td><td><code>shop_api/routers.py</code></td></tr>
+                <tr><td>管理员接口、经营看板、操作日志</td><td><code>shop_api/admin_router.py</code></td></tr>
+                <tr><td>数据表及关系、订单快照</td><td><code>shop_api/models.py</code></td></tr>
+                <tr><td>数据库连接和旧库增量更新</td><td><code>shop_api/database.py</code></td></tr>
+                <tr><td>登录凭证、角色权限、银行卡校验</td><td><code>shop_api/security.py</code></td></tr>
+                <tr><td>商品初始数据、图片保存、购物车展示</td><td><code>shop_api/services.py</code></td></tr>
+                <tr><td>飞书卡片和重试</td><td><code>shop_api/notifications.py</code></td></tr>
+                <tr><td>接口与集成测试</td><td><code>tests/test_api.py</code></td></tr>
+                <tr><td>前端实际调用位置</td><td><code>frontend/app/shop.tsx</code> 等</td></tr>
+            </table>
+        </div>
+        <div>
+            <div class="block tint reveal d2">
+                <div class="block-label">讲师备注</div>
+                <ul class="points">
+                    <li>当前后端选取的架构是 <strong>FastAPI</strong>，也可使用其他语言的架构</li>
+                    <li>默认数据库：PostgreSQL 的 <code>nzw</code> 库、<code>shop</code> schema</li>
+                    <li>学生复刻时应允许<strong>自行配置</strong>名称和连接信息</li>
+                </ul>
+            </div>
+            <div class="block reveal d3" style="margin-top:16px;background:var(--ink)">
+                <div class="block-label">谢谢</div>
+                <p style="color:#e8e8e4;font-size:22px;line-height:1.6">先写"用户能买到最后一件商品"，<br>再补四个边界场景——<br>提示词就这样一层层变结实。</p>
+            </div>
+        </div>
+    </div>
+    <div class="pageno"><b>END</b></div>
+</section>
+
+</main>
+</div>
+
+<script>
+/* ===========================================
+   放映控制器：缩放舞台 + 键盘/触摸/滚轮导航 + 进度条
+   =========================================== */
+class SlidePresentation {
+    constructor() {
+        this.slides = document.querySelectorAll('.slide');
+        this.currentSlide = 0;
+        this.stage = document.getElementById('deckStage');
+        this.hud = document.getElementById('deckHud');
+        this.progress = document.getElementById('progressBar');
+        this.wheelLock = false;
+        this.setupStageScale();
+        this.setupKeyboardNav();
+        this.setupTouchNav();
+        this.setupWheelNav();
+        // 支持 #页码 深链接（从 1 开始计数）
+        const fromHash = parseInt((location.hash || '').replace('#', ''), 10);
+        this.showSlide(Number.isFinite(fromHash) ? fromHash - 1 : 0);
+        // hash 变化时实时跳转（replaceState 不触发 hashchange，无循环）
+        window.addEventListener('hashchange', () => {
+            const n = parseInt((location.hash || '').replace('#', ''), 10);
+            if (Number.isFinite(n) && n - 1 !== this.currentSlide) this.showSlide(n - 1);
+        });
+    }
+
+    /* 固定 1920×1080 舞台整体缩放，绝不重排内容 */
+    setupStageScale() {
+        const scale = () => {
+            const factor = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+            const x = (window.innerWidth - 1920 * factor) / 2;
+            const y = (window.innerHeight - 1080 * factor) / 2;
+            this.stage.style.transform = `translate(${x}px, ${y}px) scale(${factor})`;
+        };
+        scale();
+        window.addEventListener('resize', scale);
+    }
+
+    setupKeyboardNav() {
+        document.addEventListener('keydown', (e) => {
+            if (document.body.classList.contains('editing')) return;
+            if (['ArrowRight', 'ArrowDown', ' ', 'PageDown'].includes(e.key)) {
+                e.preventDefault(); this.next();
+            } else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) {
+                e.preventDefault(); this.prev();
+            } else if (e.key === 'Home') this.showSlide(0);
+            else if (e.key === 'End') this.showSlide(this.slides.length - 1);
+        });
+    }
+
+    setupTouchNav() {
+        let startX = 0, startY = 0;
+        document.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+        }, { passive: true });
+        document.addEventListener('touchend', (e) => {
+            const dx = e.changedTouches[0].clientX - startX;
+            const dy = e.changedTouches[0].clientY - startY;
+            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
+                dx < 0 ? this.next() : this.prev();
+            }
+        }, { passive: true });
+    }
+
+    setupWheelNav() {
+        document.addEventListener('wheel', (e) => {
+            if (this.wheelLock || document.body.classList.contains('editing')) return;
+            if (Math.abs(e.deltaY) < 24) return;
+            this.wheelLock = true;
+            e.deltaY > 0 ? this.next() : this.prev();
+            setTimeout(() => this.wheelLock = false, 700);
+        }, { passive: true });
+    }
+
+    next() { this.showSlide(this.currentSlide + 1); }
+    prev() { this.showSlide(this.currentSlide - 1); }
+
+    showSlide(index) {
+        this.currentSlide = Math.max(0, Math.min(index, this.slides.length - 1));
+        this.slides.forEach((slide, i) => {
+            slide.classList.toggle('active', i === this.currentSlide);
+            slide.classList.toggle('visible', i === this.currentSlide);
+        });
+        this.hud.textContent = `${this.currentSlide + 1} / ${this.slides.length}`;
+        this.progress.style.width = `${((this.currentSlide + 1) / this.slides.length) * 100}%`;
+        history.replaceState(null, '', `#${this.currentSlide + 1}`);
+    }
+}
+
+const deck = new SlidePresentation();
+
+/* ===========================================
+   内联编辑：E 键或左上角热区进入，Ctrl+S 导出
+   =========================================== */
+class InlineEditor {
+    constructor() { this.isActive = false; }
+    toggleEditMode() {
+        this.isActive = !this.isActive;
+        document.body.classList.toggle('editing', this.isActive);
+        document.getElementById('editToggle').classList.toggle('active', this.isActive);
+        const slide = document.querySelector('.slide.visible');
+        slide.querySelectorAll('h1, h2, p, li, td, th, span, .term').forEach(el => {
+            if (this.isActive) el.setAttribute('contenteditable', 'true');
+            else el.removeAttribute('contenteditable');
+        });
+    }
+    exportHTML() {
+        document.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+        const blob = new Blob(['<!DOCTYPE html>\n' + document.documentElement.outerHTML], { type: 'text/html' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'backend-slides-edited.html';
+        a.click();
+    }
+}
+const editor = new InlineEditor();
+
+const hotzone = document.querySelector('.edit-hotzone');
+const editToggle = document.getElementById('editToggle');
+let hideTimeout = null;
+hotzone.addEventListener('mouseenter', () => { clearTimeout(hideTimeout); editToggle.classList.add('show'); });
+hotzone.addEventListener('mouseleave', () => {
+    hideTimeout = setTimeout(() => { if (!editor.isActive) editToggle.classList.remove('show'); }, 400);
+});
+editToggle.addEventListener('mouseenter', () => clearTimeout(hideTimeout));
+editToggle.addEventListener('mouseleave', () => {
+    hideTimeout = setTimeout(() => { if (!editor.isActive) editToggle.classList.remove('show'); }, 400);
+});
+hotzone.addEventListener('click', () => editor.toggleEditMode());
+editToggle.addEventListener('click', () => editor.toggleEditMode());
+document.addEventListener('keydown', (e) => {
+    if ((e.key === 'e' || e.key === 'E') && !e.target.getAttribute('contenteditable')) {
+        editor.toggleEditMode();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 's' && editor.isActive) {
+        e.preventDefault(); editor.exportHTML();
+    }
+});
+</script>
+</body>
+</html>

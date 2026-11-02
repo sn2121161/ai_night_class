@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="常州夜宵第5课：从纯前端网页到真正的应用——后端 API 与数据库"
+    />
+    <meta name="theme-color" content="#070812" />
+    <title>从网页到应用｜第5课</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="deck" id="deck" aria-live="polite">
+      <section class="slide cover active" data-title="从网页到应用" data-section="opening">
+        <div class="aurora" aria-hidden="true"></div>
+        <div class="eyebrow">常州夜宵 005 · 55–75 MIN</div>
+        <h1>从网页<br />到<span>应用</span></h1>
+        <p class="lead">后端 API · 数据库 · Web 历史</p>
+        <div class="cover-system" aria-label="课程核心数据流">
+          <span class="cover-node node-browser">前端</span>
+          <i></i>
+          <span class="cover-node node-api">API</span>
+          <i></i>
+          <span class="cover-node node-server">后端</span>
+          <i></i>
+          <span class="cover-node node-db">数据库</span>
+          <b class="travel-dot" aria-hidden="true"></b>
+        </div>
+        <p class="cover-hint">方向键翻页 · F 全屏 · O 目录 · N 讲师备注 · R 重播动画</p>
+        <aside class="speaker-note">
+          建议用时 2 分钟。开场不先解释概念，直接问：上节课的个人 AI 导航页已经很好看了，为什么它还不是一个真正的商业应用？
+        </aside>
+      </section>
+
+      <section class="slide" data-title="一个按钮引出的问题" data-section="opening">
+        <div class="eyebrow">00 · 今天的案例</div>
+        <h2>一个“发布商品”按钮，<br />背后到底发生了什么？</h2>
+        <div class="commerce-stage">
+          <article class="product-card">
+            <img class="product-image" src="assets/generated/cyber-fortune-bracelet.png" alt="赛博转运手串产品图" />
+            <div><small>AI 玄学商店</small><strong>赛博转运手串</strong></div>
+            <b>¥299</b>
+          </article>
+          <button class="publish-button pulse-action" type="button" tabindex="-1">发布商品</button>
+          <div class="question-cloud" aria-hidden="true">
+            <span>保存到哪里？</span><span>谁能发布？</span><span>价格可信吗？</span>
+          </div>
+        </div>
+        <p class="bottom-quote">页面只负责让用户“发起操作”，真正的业务从点击之后才开始。</p>
+        <aside class="speaker-note">
+          建议用时 3 分钟。让学生先猜。不要立刻说答案，记下他们提到的“保存”“权限”“价格”，后面逐一回收。
+        </aside>
+      </section>
+
+      <section class="slide" data-title="两条故事线" data-section="opening">
+        <div class="eyebrow">01 · 课程路线</div>
+        <h2>先看网页怎样走到今天，<br />再拆开一次真实操作</h2>
+        <div class="dual-route">
+          <article class="route-history">
+            <span class="route-index">A</span>
+            <div><small>WEB HISTORY</small><strong>从静态文档到多端应用</strong></div>
+            <p>每一代技术，都在修补上一代的缺口。</p>
+          </article>
+          <article class="route-system">
+            <span class="route-index">B</span>
+            <div><small>HOW IT WORKS</small><strong>从纯前端到后端与数据库</strong></div>
+            <p>顺着一次“新增商品”，追踪数据的全程。</p>
+          </article>
+        </div>
+        <aside class="speaker-note">
+          建议用时 2 分钟。告诉学生今天不背语法，目标是建立一张完整地图。标准版约 65 分钟；互动多时可扩展到 75 分钟。
+        </aside>
+      </section>
+
+      <section class="slide chapter history-visual-slide" data-title="Web 最初是一本互联的书" data-section="history">
+        <div class="eyebrow">PART A · WEB HISTORY</div>
+        <h2>Web 最初要解决的，<br />是“怎样分享文档”</h2>
+        <figure class="history-hero">
+          <img src="assets/generated/web-evolution.png" alt="从早期文档网页到现代多端 Web 应用的演进插画" />
+          <figcaption><b>1989</b><i></i><span>文档与超链接</span><i></i><b>Today</b></figcaption>
+        </figure>
+        <p class="bottom-quote">它像一个全球共享的资料柜，还不像今天的应用。</p>
+        <aside class="speaker-note">
+          建议用时 3 分钟。Tim Berners-Lee 1989 年在 CERN 提出 Web，目标是满足科研机构之间自动化信息共享的需求。第一个网站也是对 Web 项目本身的说明。来源：https://home.cern/science/computing/the-birth-of-the-web/
+        </aside>
+      </section>
+
+      <section class="slide" data-title="静态网页只会原样交付" data-section="history">
+        <div class="eyebrow">02 · 静态 WEB</div>
+        <h2>服务器像仓库管理员：<br />你要哪份，它就拿哪份</h2>
+        <div class="static-delivery">
+          <div class="browser-window"><b><img src="assets/icons/app-window.svg" alt="" />浏览器</b><span>请给我 <code>/about.html</code></span></div>
+          <div class="delivery-path"><i></i><span>HTTP</span><i></i></div>
+          <div class="file-shelf"><b><img src="assets/icons/files.svg" alt="" />Web 服务器</b><code>index.html</code><code class="selected">about.html</code><code>contact.html</code></div>
+        </div>
+        <div class="problem-stamp">每个人看到的几乎都一样</div>
+        <aside class="speaker-note">
+          建议用时 3 分钟。强调“静态”不是指没有动画，而是服务器交付的内容事先已经写好。即使 CSS 有动画，页面也可以是静态站点。
+        </aside>
+      </section>
+
+      <section class="slide" data-title="服务器开始现做页面" data-section="history">
+        <div class="eyebrow">03 · 动态网站</div>
+        <h2>论坛、登录和电商出现后，<br />服务器开始“现做页面”</h2>
+        <div class="dynamic-kitchen">
+          <div class="request-ticket"><small>用户请求</small><b>我的订单</b><span>user = 1024</span></div>
+          <span class="flow-arrow">→</span>
+          <div class="server-chef"><span>⚙</span><b>后端程序</b><small>PHP · ASP · JSP · CGI</small></div>
+          <span class="flow-arrow">→</span>
+          <div class="made-page"><small>实时生成</small><b>订单 #2048</b><span>已发货</span></div>
+        </div>
+        <p class="bottom-quote">同一个网址，开始因人、因时、因数据而不同。</p>
+        <aside class="speaker-note">
+          建议用时 4 分钟。口述例子：新闻首页自动显示最新文章；论坛显示刚发布的帖子；用户登录后看到自己的订单。这是“后端”第一次作为故事主角出现。
+        </aside>
+      </section>
+
+      <section class="slide" data-title="数据库让网站拥有记忆" data-section="history">
+        <div class="eyebrow">04 · 数据驱动</div>
+        <h2>后端让网页会处理，<br />数据库让网站有了“记忆”</h2>
+        <div class="memory-vault">
+          <div class="memory-stream left"><span>用户</span><span>帖子</span><span>商品</span></div>
+          <div class="database-core"><i></i><i></i><i></i><b>DATABASE</b></div>
+          <div class="memory-stream right"><span>评论</span><span>订单</span><span>库存</span></div>
+        </div>
+        <div class="history-correction">
+          <b>注意</b><span>数据库早于 Web 出现；动态网站只是把它带进了日常网页。</span>
+        </div>
+        <aside class="speaker-note">
+          建议用时 3 分钟。不要说“因为网站才发明数据库”。更准确的表达是：当网站需要注册、发帖、购物和订单时，后端程序与数据库成为动态网站的关键部分。
+        </aside>
+      </section>
+
+      <section class="slide" data-title="Ajax 让网页不再整页刷新" data-section="history">
+        <div class="eyebrow">05 · AJAX</div>
+        <h2>点一次按钮，<br />不必再换一整张页面</h2>
+        <div class="ajax-compare">
+          <article class="reload-side">
+            <small>BEFORE</small><b>整页重新加载</b>
+            <div class="page-wireframe shaking"><i></i><i></i><i></i><i></i></div>
+            <span>购物车 +1 → 白屏 → 整页回来</span>
+          </article>
+          <article class="partial-side">
+            <small>AFTER</small><b>只交换必要数据</b>
+            <div class="page-wireframe"><i></i><i class="updating"></i><i></i><i></i></div>
+            <span>购物车数字局部更新</span>
+          </article>
+        </div>
+        <p class="bottom-quote">网页开始像桌面软件：更流畅，也更依赖 JavaScript 与后端通信。</p>
+        <aside class="speaker-note">
+          建议用时 3 分钟。不需讲 XMLHttpRequest 的详细语法。举邮箱、地图、聊天的例子：每次操作都整页刷新，体验会很差。可补充阅读：https://developer.mozilla.org/docs/Glossary/AJAX
+        </aside>
+      </section>
+
+      <section class="slide" data-title="API 让一套业务服务多个端" data-section="history">
+        <div class="eyebrow">06 · 前后端分离</div>
+        <h2>当网页、App、小程序都要下单，<br />后端就不能只会生成 HTML</h2>
+        <div class="multi-client">
+          <div class="client-cluster"><span>▣ Web</span><span>▯ App</span><span>◇ 小程序</span></div>
+          <div class="api-gateway"><small>统一入口</small><b>API</b><i></i><i></i><i></i></div>
+          <div class="service-stack"><span>商品</span><span>订单</span><span>用户</span></div>
+        </div>
+        <div class="json-ribbon"><code>{ "name": "赛博转运手串", "price": 299 }</code></div>
+        <aside class="speaker-note">
+          建议用时 4 分钟。这里是历史线与下半场 API 主题的接缝。后端返回数据，不同端自己决定怎么展示。“前后端分离”不是唯一架构，但是学生理解现代 API 应用的好入口。
+        </aside>
+      </section>
+
+      <section class="slide history-map" data-title="Web 史是一条问题链" data-section="history">
+        <div class="eyebrow">07 · 历史不是年份表</div>
+        <h2>每当网页想多做一件事，<br />就需要新的能力补上缺口</h2>
+        <div class="era-rail">
+          <article><b>静态网页</b><span>分享文档</span></article>
+          <article><b>动态网站</b><span>因人而变</span></article>
+          <article><b>数据驱动</b><span>长期记忆</span></article>
+          <article><b>Ajax</b><span>局部更新</span></article>
+          <article><b>API</b><span>多端复用</span></article>
+        </div>
+        <p class="bottom-quote">技术不是从名词开始的；技术是从“现在还做不到什么”开始的。</p>
+        <aside class="speaker-note">
+          建议用时 2 分钟。这一页用来回收历史线，不要重复前面所有内容。可让学生用一句话回答：数据库补了什么？API 又补了什么？
+        </aside>
+      </section>
+
+      <section class="slide chapter" data-title="纯前端的边界" data-section="system">
+        <div class="eyebrow">PART B · HOW IT WORKS</div>
+        <h2>上节课的纯前端没有错，<br />它只是到了自己的边界</h2>
+        <div class="boundary-bridge">
+          <div class="boundary-side browser-side">
+            <div class="boundary-heading"><img src="assets/icons/panels-top-left.svg" alt="" /><small>浏览器内已经会做</small></div>
+            <strong>展示与交互</strong>
+            <p>搜索 · 卡片 · 动画 · 弹窗</p>
+          </div>
+          <div class="browser-boundary" aria-label="浏览器边界">
+            <span>浏览器边界</span><i></i><b>→</b>
+          </div>
+          <div class="boundary-side business-side">
+            <div class="boundary-heading"><img src="assets/icons/server-cog.svg" alt="" /><small>电商系统还需要</small></div>
+            <strong>共享与可信</strong>
+            <ul><li><img src="assets/icons/database.svg" alt="" />长期保存</li><li><img src="assets/icons/users.svg" alt="" />多人共享</li><li><img src="assets/icons/shield-check.svg" alt="" />权限与密钥</li></ul>
+          </div>
+        </div>
+        <p class="boundary-conclusion">不是前端做错了，而是问题已经走出了浏览器。</p>
+        <aside class="speaker-note">
+          建议用时 2 分钟。避免让学生觉得上节课白学了。纯前端适合作品展示、个人工具、离线小应用和原型；业务一旦需要共享状态与权限，就需要突破浏览器边界。
+        </aside>
+      </section>
+
+      <section class="slide" data-title="三个问题把我们推向后端" data-section="system">
+        <div class="eyebrow">08 · 发现问题</div>
+        <h2>电商管理系统一上线，<br />纯前端立刻遇到三道墙</h2>
+        <div class="three-walls">
+          <article><span>01</span><img src="assets/icons/database.svg" alt="" /><b>保存</b><p>换电脑、清缓存，商品还在吗？</p></article>
+          <article><span>02</span><img src="assets/icons/users.svg" alt="" /><b>共享</b><p>顾客下单后，仓库怎么立刻看见？</p></article>
+          <article><span>03</span><img src="assets/icons/shield-check.svg" alt="" /><b>信任</b><p>价格、权限、API 密钥能交给浏览器吗？</p></article>
+        </div>
+        <div class="solution-line"><span>数据库</span><i></i><span>后端</span><i></i><span>API</span></div>
+        <aside class="speaker-note">
+          建议用时 4 分钟。对应开场学生提到的问题。本地存储不是“没用”，它适合保存个人偏好、草稿和缓存；但不适合作为多人电商系统的唯一真实来源。
+        </aside>
+      </section>
+
+      <section class="slide" data-title="前端表达意图，后端做决定" data-section="system">
+        <div class="eyebrow">09 · 职责边界</div>
+        <h2>前端表达“我想做什么”，<br />后端决定“能不能做”</h2>
+        <div class="responsibility-split">
+          <article class="front-duty"><small>FRONTEND</small><b>看得见、点得动</b><span>展示商品</span><span>收集表单</span><span>发起请求</span><span>显示结果</span></article>
+          <div class="decision-gate"><span>意图</span><i></i><b>信任边界</b><i></i><span>结果</span></div>
+          <article class="back-duty"><small>BACKEND</small><b>验证、计算、执行</b><span>身份与权限</span><span>参数校验</span><span>业务规则</span><span>数据库操作</span></article>
+        </div>
+        <aside class="speaker-note">
+          建议用时 4 分钟。举例：前端可以先检查库存是否为空，让用户更快获得提示；但后端仍然必须再检查一次，因为前端请求可被修改或伪造。
+        </aside>
+      </section>
+
+      <section class="slide interactive-slide" data-title="API 就像打电话" data-section="system">
+        <div class="eyebrow">10 · API 直觉</div>
+        <h2>API 就像打电话：<br />号码、内容、流程和回复都有规则</h2>
+        <div class="phone-demo" id="phoneDemo">
+          <div class="phone front-phone"><img class="phone-icon" src="assets/icons/phone-call.svg" alt="" /><small>前端</small><b>发布商品</b><button id="callApi" type="button">拨打 API</button></div>
+          <div class="call-wire"><i></i><span id="callPacket">POST /api/products</span><b></b></div>
+          <div class="phone back-phone"><img class="phone-icon" src="assets/icons/headset.svg" alt="" /><small>后端</small><b>固定 SOP</b><span id="callStatus">等待来电</span></div>
+        </div>
+        <div class="phone-legend">
+          <span><b>按钮</b>拨号</span><span><b>URL</b>电话号码</span><span><b>JSON</b>通话内容</span><span><b>后端逻辑</b>客服脚本</span><span><b>Response</b>回复</span>
+        </div>
+        <aside class="speaker-note">
+          建议用时 5 分钟。点击“拨打 API”演示。后端的脚本是相对固定的：检查、查数据库、保存、返回。每次通话中的商品数据可以不同。强调 API 不只是一个 URL，而是一套沟通合同。
+        </aside>
+      </section>
+
+      <section class="slide" data-title="API 合同规定怎么说和怎么答" data-section="system">
+        <div class="eyebrow">11 · API 合同</div>
+        <h2>双方要约定的，<br />不只是“电话号码”</h2>
+        <div class="api-contract">
+          <div class="method-list"><span class="get">GET <b>查询</b></span><span class="post">POST <b>新增</b></span><span class="patch">PATCH <b>修改</b></span><span class="delete">DELETE <b>删除</b></span></div>
+          <div class="contract-sheet">
+            <small>REQUEST</small><code>POST /api/products</code>
+            <pre>{
+  "name": "AI 赛博转运符",
+  "price": 168,
+  "stock": 50
+}</pre>
+          </div>
+          <div class="contract-sheet response-sheet">
+            <small>RESPONSE</small><code>201 Created</code>
+            <pre>{
+  "id": 24,
+  "status": "published"
+}</pre>
+          </div>
+        </div>
+        <aside class="speaker-note">
+          建议用时 4 分钟。只讲 GET 和 POST 也能完成 55 分钟压缩版；标准版再带到 PATCH 与 DELETE。不要进入 REST 的严格定义争论。目标是理解方法、地址、数据、状态和返回格式共同组成合同。
+        </aside>
+      </section>
+
+      <section class="slide interactive-slide" data-title="前端价格只能当参考" data-section="system">
+        <div class="eyebrow">12 · 不要相信前端</div>
+        <h2>用户把¥299改成¥1，<br />后端会照单全收吗？</h2>
+        <div class="tamper-lab">
+          <div class="tamper-browser"><small>浏览器发来的价格</small><label>¥ <input id="clientPrice" type="number" value="1" min="0" /></label><button id="submitOrder" type="button">提交订单</button></div>
+          <div class="security-scan"><span>→</span><b>后端重新查价</b><i></i></div>
+          <div class="trusted-price"><small>数据库中的真实价格</small><strong>¥299</strong><span id="priceVerdict">等待验证</span></div>
+        </div>
+        <p class="bottom-quote">前端表示用户的意图；最终价格、权限和库存必须由后端核实。</p>
+        <aside class="speaker-note">
+          建议用时 5 分钟。先让学生在输入框改价格，再提交。这个演示用来解释为什么前端校验只是提升体验，不是安全边界。“有后端”也不代表自动安全，仍需要身份、权限和参数验证。
+        </aside>
+      </section>
+
+      <section class="slide" data-title="数据库是结构化的共享记忆" data-section="system">
+        <div class="eyebrow">13 · DATABASE</div>
+        <h2>数据库不只是“存下来”，<br />还要让数据可查、可改、可关联</h2>
+        <div class="data-table-wrap">
+          <table>
+            <thead><tr><th>id</th><th>name</th><th>price</th><th>stock</th><th>status</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>开运水晶</td><td>199</td><td>12</td><td><span class="status-on">上架</span></td></tr>
+              <tr><td>2</td><td>AI 塔罗报告</td><td>99</td><td>999</td><td><span class="status-on">上架</span></td></tr>
+              <tr><td>3</td><td>赛博木鱼</td><td>299</td><td>0</td><td><span class="status-off">售罄</span></td></tr>
+            </tbody>
+          </table>
+          <div class="table-labels"><span><b>表</b>一类业务数据</span><span><b>行</b>一个商品</span><span><b>列</b>商品的属性</span><span><b>ID</b>唯一编号</span></div>
+        </div>
+        <aside class="speaker-note">
+          建议用时 4 分钟。本节不深入 SQL，也不讲范式。小白先理解表、行、列和 ID。可口述补充：普通文件也能保存，数据库的价值在于结构化查询、并发访问、关系和一致性管理。
+        </aside>
+      </section>
+
+      <section class="slide" data-title="关系把分散的表变成业务" data-section="system">
+        <div class="eyebrow">14 · 数据关系</div>
+        <h2>一张表只记一类东西，<br />“关系”把它们连成一笔生意</h2>
+        <div class="relation-map">
+          <article class="entity user-entity"><small>USERS</small><b>用户 #18</b><span>小王</span></article>
+          <article class="entity order-entity"><small>ORDERS</small><b>订单 #2048</b><span>user_id = 18</span></article>
+          <article class="entity item-entity"><small>ORDER_ITEMS</small><b>订单明细</b><span>product_id = 3</span></article>
+          <article class="entity product-entity"><small>PRODUCTS</small><b>商品 #3</b><span>赛博木鱼</span></article>
+          <svg class="relation-lines" viewBox="0 0 1000 310" preserveAspectRatio="none" aria-hidden="true"><path d="M225 155 C300 155 300 80 400 80"/><path d="M600 80 C700 80 690 230 780 230"/><path d="M600 230 C680 230 690 230 780 230"/></svg>
+        </div>
+        <p class="bottom-quote">后端通过 ID 把“谁买了什么”组装成完整结果。</p>
+        <aside class="speaker-note">
+          建议用时 3 分钟。如果课程要压缩到 55 分钟，可以跳过此页或只用一分钟带过。不介绍外键语法，只让学生理解 ID 是数据之间的“号码牌”。
+        </aside>
+      </section>
+
+      <section class="slide interactive-slide" data-title="一次新增商品走完整条链" data-section="system">
+        <div class="eyebrow">15 · 端到端数据流</div>
+        <h2>现在，让“发布商品”<br />真正走完一整条链</h2>
+        <div class="end-to-end" id="flowDemo">
+          <article data-flow-step="1"><small>1</small><b>前端</b><span>读取表单</span></article>
+          <i>→</i>
+          <article data-flow-step="2"><small>2</small><b>API</b><span>POST /products</span></article>
+          <i>→</i>
+          <article data-flow-step="3"><small>3</small><b>后端</b><span>校验与执行</span></article>
+          <i>→</i>
+          <article data-flow-step="4"><small>4</small><b>数据库</b><span>写入商品</span></article>
+          <i>→</i>
+          <article data-flow-step="5"><small>5</small><b>前端</b><span>更新列表</span></article>
+        </div>
+        <button class="run-flow" id="runFlow" type="button">运行这次请求</button>
+        <div class="flow-result" id="flowResult"><span>●</span>等待运行</div>
+        <aside class="speaker-note">
+          建议用时 6 分钟，这是本课最重要的演示，不建议压缩。点击按钮后逐节解释。等动画返回前端时，强调页面上出现商品只是最后一步，中间才是真正的应用能力。
+        </aside>
+      </section>
+
+      <section class="slide" data-title="框架把重复工作变成基础设施" data-section="ecosystem">
+        <div class="eyebrow">16 · 为什么需要后端框架</div>
+        <h2>每个项目都要处理同类杂事，<br />框架把它们做成“客服中心基建”</h2>
+        <div class="framework-machine">
+          <div class="raw-request">REQUEST</div>
+          <div class="machine-belt">
+            <span><img src="assets/icons/route.svg" alt="" /><b>路由</b></span>
+            <span><img src="assets/icons/scan-text.svg" alt="" /><b>参数解析</b></span>
+            <span><img src="assets/icons/shield-check.svg" alt="" /><b>数据校验</b></span>
+            <span><img src="assets/icons/key-round.svg" alt="" /><b>身份权限</b></span>
+            <span><img src="assets/icons/database.svg" alt="" /><b>数据访问</b></span>
+            <span><img src="assets/icons/logs.svg" alt="" /><b>错误日志</b></span>
+          </div>
+          <div class="clean-response">RESPONSE</div>
+        </div>
+        <p class="bottom-quote">语言是后端使用的表达方式；框架是已经搭好的工作骨架。</p>
+        <aside class="speaker-note">
+          建议用时 3 分钟。这里顺势修正“后端组件库”说法：更常用的是“后端语言与框架生态”。框架里也会集成或连接许多组件库。
+        </aside>
+      </section>
+
+      <section class="slide ecosystem-map" data-title="六条常见后端路线" data-section="ecosystem">
+        <div class="eyebrow">17 · BACKEND ECOSYSTEM</div>
+        <h2>没有绝对最好的语言，<br />只有对当前问题更合适的取舍</h2>
+        <div class="language-orbit">
+          <article class="lang-node node-js"><img src="assets/icons/brand-nodedotjs.svg" alt="Node.js" /><div><b>JS / TS</b><span>Express · NestJS</span></div></article>
+          <article class="lang-node node-python"><img src="assets/icons/brand-python.svg" alt="Python" /><div><b>Python</b><span>FastAPI · Django</span></div></article>
+          <article class="lang-node node-java"><img src="assets/icons/brand-springboot.svg" alt="Spring Boot" /><div><b>Java</b><span>Spring Boot</span></div></article>
+          <article class="lang-node node-php"><img src="assets/icons/brand-php.svg" alt="PHP" /><div><b>PHP</b><span>Laravel</span></div></article>
+          <article class="lang-node node-go"><img src="assets/icons/brand-go.svg" alt="Go" /><div><b>Go</b><span>Gin · Echo</span></div></article>
+          <article class="lang-node node-dotnet"><img src="assets/icons/brand-dotnet.svg" alt=".NET" /><div><b>C#</b><span>ASP.NET Core</span></div></article>
+          <div class="orbit-center"><small>SAME JOB</small><b>API</b><span>JSON 返回相同，前端就能照常工作</span></div>
+        </div>
+        <aside class="speaker-note">
+          建议用时 3 分钟。不要讲成排名。统一用 GET /api/products 的例子：后端可以由 Express、FastAPI 或 Spring Boot 实现，只要返回合同一致，前端并不需要知道内部语言。
+        </aside>
+      </section>
+
+      <section class="slide" data-title="六种路线，六种小白比喻" data-section="ecosystem">
+        <div class="eyebrow">18 · 优势与代价</div>
+        <h2>如果把后端当成不同类型的交通工具</h2>
+        <div class="tradeoff-grid">
+          <article><b>Node.js</b><strong>同语言的换乘线</strong><p>前后端都用 JavaScript，上手快；重计算需要另做安排。</p></article>
+          <article><b>Python</b><strong>容易驾驶的 AI 接驳车</strong><p>语法直观、AI 生态强；不以极致运行性能见长。</p></article>
+          <article><b>Java</b><strong>企业级标准生产线</strong><p>JVM 带来跨平台能力，生态成熟；概念多、通常更重。</p></article>
+          <article><b>PHP</b><strong>为网站而生的老牌工具箱</strong><p>入门与部署简单；大项目更依赖清晰规范。</p></article>
+          <article><b>Go</b><strong>轻量高效的货车</strong><p>性能、并发与部署体验好；复杂业务可能写得更明确也更多。</p></article>
+          <article><b>C#</b><strong>微软企业生态快车</strong><p>工具与工程化完整；需要进入 .NET 的整套生态。</p></article>
+        </div>
+        <aside class="speaker-note">
+          建议用时 6 分钟。需要口述三个纠偏：一，Java 是“一次编译，在有合适 JVM 的环境运行”，不是完全无需适配；二，PHP 可以嵌入 HTML 在服务器生成页面，但 PHP 本身通常不在浏览器运行；三，Go 的优势来自编译、相对轻量的运行时与并发模型，不是“只有 Go 才会自动内存管理”。
+        </aside>
+      </section>
+
+      <section class="slide" data-title="本课选择 React Express SQLite" data-section="ecosystem">
+        <div class="eyebrow">19 · 今天的选择</div>
+        <h2>我们选 Node.js，<br />不是因为它永远最好</h2>
+        <div class="chosen-stack">
+          <article><img src="assets/icons/panels-top-left.svg" alt="" /><small>UI</small><b>React</b><span>已经熟悉的前端</span></article>
+          <i>+</i>
+          <article class="chosen"><img src="assets/icons/server-cog.svg" alt="" /><small>API</small><b>Express</b><span>继续使用 JavaScript</span></article>
+          <i>+</i>
+          <article><img src="assets/icons/database.svg" alt="" /><small>DATA</small><b>SQLite</b><span>一个文件即可入门</span></article>
+        </div>
+        <div class="choice-reason"><b>这节课只增加两个新东西</b><span>后端思维</span><span>数据库思维</span></div>
+        <aside class="speaker-note">
+          建议用时 3 分钟。Node.js 官方学习页也将“前端开发者可继续用 JavaScript 写服务端”作为它的明显优势。来源：https://nodejs.org/learn。展示其他生态是为了地图，课堂实作则要降低语言切换成本。
+        </aside>
+      </section>
+
+      <section class="slide interactive-slide" data-title="这件事该放在哪里" data-section="closing">
+        <div class="eyebrow">20 · 快速判断</div>
+        <h2>这件事，应该放在前端、<br />后端，还是数据库？</h2>
+        <div class="sorting-quiz" id="sortingQuiz">
+          <button type="button" data-answer="frontend"><span>显示一个动画</span><b>点击看答案</b></button>
+          <button type="button" data-answer="backend"><span>判断谁是管理员</span><b>点击看答案</b></button>
+          <button type="button" data-answer="database"><span>保存商品库存</span><b>点击看答案</b></button>
+          <button type="button" data-answer="backend"><span>计算订单最终价格</span><b>点击看答案</b></button>
+          <button type="button" data-answer="frontend"><span>显示“正在加载”</span><b>点击看答案</b></button>
+          <button type="button" data-answer="backend"><span>保管 AI 平台密钥</span><b>点击看答案</b></button>
+        </div>
+        <aside class="speaker-note">
+          建议用时 4–7 分钟，用于扩展到 75 分钟。先让学生投票，再点击揭晓。库存的“保存”在数据库，但“扣减库存的规则”在后端；用这个追问说明三者是协作，不是相互排斥。
+        </aside>
+      </section>
+
+      <section class="slide closing-slide" data-title="今天为网页补上了什么" data-section="closing">
+        <div class="eyebrow">21 · 回到开场</div>
+        <h2>今天，我们为“好看的网页”<br />补上了三种真实能力</h2>
+        <div class="closing-triad">
+          <article><small>BACKEND</small><b>处理</b><span>规则 · 权限 · 执行</span></article>
+          <article><small>API</small><b>沟通</b><span>地址 · 数据 · 回复</span></article>
+          <article><small>DATABASE</small><b>记忆</b><span>保存 · 共享 · 关联</span></article>
+        </div>
+        <p class="final-line">页面不再只是“像一个应用”，<br /><b>它开始真正地工作。</b></p>
+        <aside class="speaker-note">
+          建议用时 3 分钟。回收开场的三个问题：保存到数据库；管理员由后端身份和权限系统判断；价格由后端根据可信数据重新核实。不要用“谢谢”空洞结束，让学生带着这张图进入下次实作。
+        </aside>
+      </section>
+
+      <section class="slide" data-title="下一步让数据真正流动" data-section="closing">
+        <div class="eyebrow">22 · NEXT</div>
+        <h2>下一步：让 AI 玄学商店<br />从假数据走向真实数据</h2>
+        <div class="next-build">
+          <span>01 <b>启动 Express API</b></span>
+          <span>02 <b>建立 products 数据表</b></span>
+          <span>03 <b>前端读取商品</b></span>
+          <span>04 <b>新增与修改数据</b></span>
+        </div>
+        <div class="next-command"><code>GET /api/products</code><i></i><strong>第一个真实 API</strong></div>
+        <aside class="speaker-note">
+          建议用时 2 分钟。如果同一节课后面紧接实作，这就是实作的起点；如果实作放到下一节，就用作预告。
+        </aside>
+      </section>
+
+      <section class="slide appendix" data-title="资料来源" data-section="appendix">
+        <div class="eyebrow">APPENDIX · SOURCES</div>
+        <h2>延伸阅读与官方资料</h2>
+        <div class="source-list">
+          <a href="https://home.cern/science/computing/the-birth-of-the-web/" target="_blank" rel="noreferrer"><b>CERN</b><span>The birth of the Web</span></a>
+          <a href="https://developer.mozilla.org/docs/Glossary/AJAX" target="_blank" rel="noreferrer"><b>MDN</b><span>AJAX</span></a>
+          <a href="https://nodejs.org/learn" target="_blank" rel="noreferrer"><b>Node.js</b><span>Introduction to Node.js</span></a>
+          <a href="https://fastapi.tiangolo.com/" target="_blank" rel="noreferrer"><b>Python</b><span>FastAPI</span></a>
+          <a href="https://www.djangoproject.com/" target="_blank" rel="noreferrer"><b>Python</b><span>Django</span></a>
+          <a href="https://spring.io/projects/spring-boot/" target="_blank" rel="noreferrer"><b>Java</b><span>Spring Boot</span></a>
+          <a href="https://expressjs.com/" target="_blank" rel="noreferrer"><b>Node.js</b><span>Express</span></a>
+          <a href="https://laravel.com/docs" target="_blank" rel="noreferrer"><b>PHP</b><span>Laravel</span></a>
+          <a href="https://gin-gonic.com/en/docs/" target="_blank" rel="noreferrer"><b>Go</b><span>Gin</span></a>
+          <a href="https://learn.microsoft.com/aspnet/core/" target="_blank" rel="noreferrer"><b>C#</b><span>ASP.NET Core</span></a>
+        </div>
+        <p class="bottom-quote">按 A 可从任意页面跳到本附录。</p>
+        <aside class="speaker-note">
+          这是备查页，不计入主讲时间。历史与技术生态的主要事实优先引用官方资料。
+        </aside>
+      </section>
+
+      <div class="deck-chrome" aria-label="幻灯片控制">
+        <div class="progress-track"><span id="progressBar"></span></div>
+        <button id="prevSlide" type="button" aria-label="上一页">←</button>
+        <button id="openOverview" type="button" aria-label="打开目录">O</button>
+        <span id="slideCounter">1 / 27</span>
+        <button id="replayAnimation" type="button" aria-label="重播当前页动画">R</button>
+        <button id="toggleFullscreen" type="button" aria-label="全屏">F</button>
+        <button id="nextSlide" type="button" aria-label="下一页">→</button>
+      </div>
+    </main>
+
+    <dialog class="overview-dialog" id="overviewDialog">
+      <div class="overview-head"><div><small>DECK MAP</small><h3>选择页面</h3></div><button id="closeOverview" type="button" aria-label="关闭">×</button></div>
+      <div class="overview-grid" id="overviewGrid"></div>
+    </dialog>
+
+    <aside class="notes-panel" id="notesPanel" aria-hidden="true">
+      <div><small>SPEAKER NOTES</small><button id="closeNotes" type="button" aria-label="关闭讲师备注">×</button></div>
+      <p id="notesContent"></p>
+    </aside>
+
+    <script src="app.js"></script>
+  </body>
+</html>

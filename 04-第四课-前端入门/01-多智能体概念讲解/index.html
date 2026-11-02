@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Multi-Agent 多智能体系统｜教学课件</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<style>
+  :root {
+    --ink: #1e293b;
+    --ink-soft: #64748b;
+    --accent: #2563eb;
+    --accent-2: #0d9488;
+    --accent-3: #7c3aed;
+    --warm: #ea580c;
+    --bg: #f8fafc;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+    overflow: hidden; }
+
+  .deck { position: relative; width: 100vw; height: 100vh; }
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 6vh 8vw;
+    opacity: 0; visibility: hidden;
+    transform: translateX(60px);
+    transition: opacity .55s ease, transform .55s ease, visibility .55s;
+    overflow-y: auto;
+  }
+  .slide.active { opacity: 1; visibility: visible; transform: translateX(0); z-index: 2; }
+  .slide.exit-left { transform: translateX(-60px); }
+
+  /* 入场动画：子元素依次浮起 */
+  .slide.active .rise { animation: rise .7s cubic-bezier(.22,1,.36,1) both; }
+  .slide.active .rise:nth-child(1) { animation-delay: .08s; }
+  .slide.active .rise:nth-child(2) { animation-delay: .16s; }
+  .slide.active .rise:nth-child(3) { animation-delay: .24s; }
+  .slide.active .rise:nth-child(4) { animation-delay: .32s; }
+  .slide.active .rise:nth-child(5) { animation-delay: .40s; }
+  .slide.active .rise:nth-child(6) { animation-delay: .48s; }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(28px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .eyebrow { font-size: 14px; letter-spacing: .18em; color: var(--accent); font-weight: 600; text-transform: uppercase; }
+
+  /* 封面光斑漂浮 */
+  .orb { position: absolute; border-radius: 50%; filter: blur(70px); opacity: .5; pointer-events: none; }
+  .orb-1 { width: 420px; height: 420px; background: #bfdbfe; top: -120px; right: -80px; animation: drift 11s ease-in-out infinite alternate; }
+  .orb-2 { width: 360px; height: 360px; background: #99f6e4; bottom: -100px; left: -60px; animation: drift 13s ease-in-out infinite alternate-reverse; }
+  .orb-3 { width: 240px; height: 240px; background: #ddd6fe; top: 40%; left: 55%; animation: drift 9s ease-in-out infinite alternate; }
+  @keyframes drift { from { transform: translate(0,0) scale(1); } to { transform: translate(40px,-30px) scale(1.08); } }
+
+  /* 封面 agent 节点脉动 */
+  .pulse-ring { position: relative; }
+  .pulse-ring::before, .pulse-ring::after {
+    content: ""; position: absolute; inset: -8px; border-radius: 9999px;
+    border: 2px solid currentColor; opacity: 0;
+    animation: pulse 3s ease-out infinite;
+  }
+  .pulse-ring::after { animation-delay: 1.5s; }
+  @keyframes pulse {
+    0% { transform: scale(.8); opacity: .7; }
+    100% { transform: scale(1.5); opacity: 0; }
+  }
+
+  /* 甘特图动画 */
+  .gantt-bar { transform-origin: left center; }
+  .slide.active .gantt-bar { animation: grow .9s cubic-bezier(.22,1,.36,1) both; }
+  .slide.active .gantt-row:nth-child(1) .gantt-bar { animation-delay: .15s; }
+  .slide.active .gantt-row:nth-child(2) .gantt-bar { animation-delay: .30s; }
+  .slide.active .gantt-row:nth-child(3) .gantt-bar { animation-delay: .45s; }
+  .slide.active .gantt-row:nth-child(4) .gantt-bar { animation-delay: .60s; }
+  .slide.active .gantt-row:nth-child(5) .gantt-bar { animation-delay: .75s; }
+  @keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+  /* 通信架构图：消息流动 */
+  .flow-dash { stroke-dasharray: 6 6; }
+  .slide.active .flow-dash { animation: dashmove 1.2s linear infinite; }
+  @keyframes dashmove { to { stroke-dashoffset: -24; } }
+
+  /* 仲裁路径高亮 */
+  .slide.active .path-glow { animation: glow 2.4s ease-in-out infinite; }
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(37,99,235,0); }
+    50% { box-shadow: 0 0 0 6px rgba(37,99,235,.12); }
+  }
+
+  /* 进度条与导航 */
+  .progress { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); z-index: 50; transition: width .4s ease; }
+  .nav-btn {
+    position: fixed; bottom: 28px; z-index: 50;
+    width: 44px; height: 44px; border-radius: 9999px;
+    display: flex; align-items: center; justify-content: center;
+    background: #fff; border: 1px solid #e2e8f0; color: var(--ink-soft);
+    cursor: pointer; transition: all .2s; box-shadow: 0 2px 8px rgba(15,23,42,.06);
+    font-size: 18px;
+  }
+  .nav-btn:hover { color: var(--accent); border-color: var(--accent); transform: translateY(-2px); }
+  .nav-btn:disabled { opacity: .3; pointer-events: none; }
+  .page-indicator { position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); z-index: 50;
+    font-size: 13px; color: var(--ink-soft); letter-spacing: .1em; }
+
+  .card-hover { transition: transform .25s ease, box-shadow .25s ease; }
+  .card-hover:hover { transform: translateY(-4px); box-shadow: 0 12px 28px -8px rgba(15,23,42,.12); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .slide, .rise, .gantt-bar, .flow-dash, .orb, .pulse-ring::before, .pulse-ring::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="progress" id="progress" style="width: 16.6%"></div>
+
+<main class="deck" id="deck">
+
+  <!-- P1 封面 -->
+  <section class="slide active" data-title="封面">
+    <div class="orb orb-1"></div><div class="orb orb-2"></div><div class="orb orb-3"></div>
+    <div class="relative z-10">
+      <p class="eyebrow rise">AI 夜校 · 第四课</p>
+      <h1 class="rise text-6xl font-bold leading-tight mt-4">Multi-Agent<br/><span class="text-blue-600">多智能体协作系统</span></h1>
+      <p class="rise text-xl text-slate-500 mt-6 max-w-2xl">当一个 AI 不够用的时候——让一群 AI 像项目组一样协同工作</p>
+      <div class="rise flex items-center gap-6 mt-10">
+        <div class="pulse-ring w-14 h-14 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">Main</div>
+        <div class="flex gap-3">
+          <div class="w-10 h-10 rounded-full bg-teal-500 text-white flex items-center justify-center text-xs font-semibold">检索</div>
+          <div class="w-10 h-10 rounded-full bg-violet-500 text-white flex items-center justify-center text-xs font-semibold">分析</div>
+          <div class="w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-semibold">核查</div>
+          <div class="w-10 h-10 rounded-full bg-orange-500 text-white flex items-center justify-center text-xs font-semibold">撰写</div>
+        </div>
+      </div>
+      <p class="rise text-sm text-slate-400 mt-12">方向键 ← → 翻页 · 共 7 页</p>
+    </div>
+  </section>
+
+    <!-- P2 甘特图 -->
+    <section class="slide" data-title="生命周期甘特图">
+      <p class="eyebrow rise">01 · 案例</p>
+      <h2 class="rise text-4xl font-bold mt-3">一次多智能体的任务</h2>
+      <p class="rise text-base text-slate-600 mt-3">以「撰写行业分析报告」为例：Orchestrator 全程调度，专业 Agent 按依赖关系激活、流水线并行。</p>
+  
+      <div class="rise mt-8 max-w-5xl bg-white rounded-2xl border border-slate-200 p-6">
+        <div class="gantt space-y-3 text-sm">
+          <div class="gantt-row flex items-center gap-3">
+            <span class="w-28 shrink-0 font-semibold text-blue-700">Orchestrator</span>
+            <div class="flex-1 h-7 bg-slate-100 rounded-md relative overflow-hidden">
+              <div class="gantt-bar absolute h-full rounded-md bg-blue-500 flex items-center px-3 text-white text-xs" style="left:0%;width:100%">任务分解 → 监控调度 → 终止检查 0-60s</div>
+            </div>
+          </div>
+          <div class="gantt-row flex items-center gap-3">
+            <span class="w-28 shrink-0 font-semibold text-teal-700">Researcher</span>
+            <div class="flex-1 h-7 bg-slate-100 rounded-md relative overflow-hidden">
+              <div class="gantt-bar absolute h-full rounded-md bg-teal-500 flex items-center px-3 text-white text-xs" style="left:3.3%;width:21.7%">检索数据源 2-15s</div>
+            </div>
+          </div>
+          <div class="gantt-row flex items-center gap-3">
+            <span class="w-28 shrink-0 font-semibold text-violet-700">Analyst</span>
+            <div class="flex-1 h-7 bg-slate-100 rounded-md relative overflow-hidden">
+              <div class="gantt-bar absolute h-full rounded-md bg-violet-500 flex items-center px-3 text-white text-xs" style="left:13.3%;width:28.3%">趋势分析 8-25s</div>
+            </div>
+          </div>
+          <div class="gantt-row flex items-center gap-3">
+            <span class="w-28 shrink-0 font-semibold text-amber-700">Reviewer</span>
+            <div class="flex-1 h-7 bg-slate-100 rounded-md relative overflow-hidden">
+              <div class="gantt-bar absolute h-full rounded-md bg-amber-500 flex items-center px-3 text-white text-xs" style="left:33.3%;width:25%">交叉验证 20-35s</div>
+            </div>
+          </div>
+          <div class="gantt-row flex items-center gap-3">
+            <span class="w-28 shrink-0 font-semibold text-orange-700">Writer</span>
+            <div class="flex-1 h-7 bg-slate-100 rounded-md relative overflow-hidden">
+              <div class="gantt-bar absolute h-full rounded-md bg-orange-500 flex items-center px-3 text-white text-xs" style="left:50%;width:41.7%">报告撰写 30-55s</div>
+            </div>
+          </div>
+        </div>
+        <div class="flex justify-between text-xs text-slate-400 mt-3 px-32"><span>0s</span><span>15s</span><span>30s</span><span>45s</span><span>60s</span></div>
+      </div>
+  
+      <div class="rise grid grid-cols-3 gap-4 mt-6 max-w-5xl text-sm">
+        <div class="bg-teal-50 border border-teal-100 rounded-xl px-4 py-3"><b class="text-teal-800">并行压缩</b><br/><span class="text-slate-600">Analyst 不等 Researcher 完工即启动，形成流水线</span></div>
+        <div class="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3"><b class="text-amber-800">事件驱动</b><br/><span class="text-slate-600">前置条件满足（数据源 ≥3 条）即触发下游 Agent</span></div>
+        <div class="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3"><b class="text-blue-800">优雅终止</b><br/><span class="text-slate-600">55s 后 Orchestrator 验收、回收资源、写入持久化</span></div>
+      </div>
+    </section>
+  
+  <!-- P2 通信原理：任务下发与上下文注入 -->
+  <section class="slide" data-title="通信原理：任务下发">
+    <p class="eyebrow rise">02 · 通信</p>
+    <h2 class="rise text-4xl font-bold mt-3">Main Agent 如何给 Sub-agent 派活？</h2>
+    <p class="rise text-lg text-slate-600 mt-4 max-w-3xl">Sub-agent 之间<span class="text-blue-600 font-semibold">从不直接对话</span>，一切通信经过 Main Agent 路由与共享内存中转——这是避免状态混乱的铁律。</p>
+    <div class="grid grid-cols-3 gap-5 mt-8 max-w-6xl">
+      <div class="rise card-hover bg-white rounded-2xl p-6 border border-slate-200">
+        <span class="text-xs font-bold text-blue-600 bg-blue-50 rounded-full px-3 py-1">STEP 1 · 上下文注入</span>
+        <h3 class="font-semibold text-lg mt-3">任务下发</h3>
+        <p class="text-slate-500 text-sm mt-2 leading-relaxed">Main Agent 把子任务描述 + 上游必要数据，<b>显式注入</b> Sub-agent 的独立上下文。Sub-agent 看不到 Main 的历史对话，只拿到"干净"的任务书。</p>
+      </div>
+      <div class="rise card-hover bg-white rounded-2xl p-6 border border-slate-200">
+        <span class="text-xs font-bold text-teal-600 bg-teal-50 rounded-full px-3 py-1">STEP 2 · 受限自治</span>
+        <h3 class="font-semibold text-lg mt-3">局部执行</h3>
+        <p class="text-slate-500 text-sm mt-2 leading-relaxed">Sub-agent 用自己的 system prompt（专属角色）工作，可调用<b>白名单工具</b>、对子任务做局部规划（Plan Mode），但 token 与调用次数有硬上限。</p>
+      </div>
+      <div class="rise card-hover bg-white rounded-2xl p-6 border border-slate-200">
+        <span class="text-xs font-bold text-violet-600 bg-violet-50 rounded-full px-3 py-1">STEP 3 · 事件驱动</span>
+        <h3 class="font-semibold text-lg mt-3">状态上报</h3>
+        <p class="text-slate-500 text-sm mt-2 leading-relaxed">执行中的关键进展（如"已获取 3 条数据源"）写入共享内存并触发事件，Main Agent 据此决定<b>是否提前激活下游</b>，形成流水线。</p>
+      </div>
+    </div>
+    <div class="rise mt-7 max-w-6xl bg-blue-50 border border-blue-100 rounded-2xl px-6 py-4 text-blue-800 text-sm">
+      <b>为什么隔离？</b>每个 Sub-agent 有独立 Context Window 和专属 system prompt，不继承 Main Agent 的角色定义——防止上下文污染，保持角色纯粹，也让 token 消耗可控。
+    </div>
+  </section>
+
+  <!-- P3 回调处理与三种内存 -->
+  <section class="slide" data-title="回调处理与三种内存">
+    <p class="eyebrow rise">03 · 回调与内存</p>
+    <h2 class="rise text-4xl font-bold mt-3">结果如何回来？内存怎么管？</h2>
+    <p class="rise text-base text-slate-600 mt-3 max-w-3xl">Sub-agent 完工后：结果摘要回传 Main Agent → 关键记忆写入持久化 → 进程终止释放资源。Main Agent 对回调信息做三件事：</p>
+    <div class="grid grid-cols-3 gap-4 mt-6 max-w-6xl">
+      <div class="rise card-hover bg-white rounded-2xl p-5 border border-slate-200">
+        <h3 class="font-semibold text-blue-700">摘要注入</h3>
+        <p class="text-slate-500 text-sm mt-1 leading-relaxed">只接收<b>压缩后的结果摘要</b>（非完整上下文），防止 Main 的上下文窗口被撑爆。</p>
+      </div>
+      <div class="rise card-hover bg-white rounded-2xl p-5 border border-slate-200">
+        <h3 class="font-semibold text-teal-700">注意力降权</h3>
+        <p class="text-slate-500 text-sm mt-1 leading-relaxed">标记信息来源，降低外部结论权重，Main 优先相信自己的最终推理。</p>
+      </div>
+      <div class="rise card-hover bg-white rounded-2xl p-5 border border-slate-200">
+        <h3 class="font-semibold text-violet-700">矛盾仲裁</h3>
+        <p class="text-slate-500 text-sm mt-1 leading-relaxed">多个回调结果冲突时启动仲裁（详见第 6 页），此处简单带过。</p>
+      </div>
+    </div>
+
+    <div class="rise mt-7 max-w-6xl">
+      <h3 class="font-semibold text-lg mb-3">三种内存方式</h3>
+      <div class="grid grid-cols-3 gap-4">
+        <div class="card-hover bg-gradient-to-b from-slate-50 to-white rounded-2xl p-5 border border-slate-200">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+            <b class="text-slate-800">临时内存</b>
+          </div>
+          <p class="text-slate-500 text-sm leading-relaxed">推理中间步骤、临时变量。<b>进程结束即销毁</b>，Sub-agent临时上下文。</p>
+        </div>
+        <div class="card-hover bg-gradient-to-b from-teal-50 to-white rounded-2xl p-5 border border-teal-200">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-teal-500"></span>
+            <b class="text-teal-800">共享内存</b>
+          </div>
+          <p class="text-slate-500 text-sm leading-relaxed">写入 Blackboard 的数据源、中间结果，<b>供其他 Sub-agent 读取</b>，任务周期内有效。</p>
+        </div>
+        <div class="card-hover bg-gradient-to-b from-blue-50 to-white rounded-2xl p-5 border border-blue-200">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+            <b class="text-blue-800">持久化内存</b>
+          </div>
+          <p class="text-slate-500 text-sm leading-relaxed">关键产出、错误日志、检查点（Checkpoint），<b>写入数据库</b>，支持跨会话查询与任务恢复。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- P5 通信架构全景 -->
+  <section class="slide" data-title="通信架构全景">
+    <p class="eyebrow rise">04 · 总结</p>
+    <h2 class="rise text-4xl font-bold mt-2">总结通信全景</h2>
+    <p class="rise text-base text-slate-600 mt-2">三个方向的通信，各司其职，永不越界。</p>
+
+    <div class="rise mt-4 max-w-5xl bg-white rounded-2xl border border-slate-200 px-6 py-2">
+      <svg viewBox="0 0 720 400" class="w-full" style="max-height: 50vh">
+        <defs>
+          <marker id="arrB" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="#2563eb" stroke-width="1.6" stroke-linecap="round"/>
+          </marker>
+          <marker id="arrG" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="#0d9488" stroke-width="1.6" stroke-linecap="round"/>
+          </marker>
+          <marker id="arrO" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="#ea580c" stroke-width="1.6" stroke-linecap="round"/>
+          </marker>
+        </defs>
+
+        <!-- 泳道标签 -->
+        <text x="14" y="66" font-size="12" font-weight="600" fill="#2563eb">① 下行</text>
+        <text x="14" y="196" font-size="12" font-weight="600" fill="#0d9488">② 横向</text>
+        <text x="14" y="336" font-size="12" font-weight="600" fill="#ea580c">③ 上行</text>
+        <line x1="0" y1="120" x2="720" y2="120" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="3 4"/>
+        <line x1="0" y1="262" x2="720" y2="262" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="3 4"/>
+
+        <!-- 泳道一：下行 任务下发 -->
+        <rect x="80" y="40" width="170" height="52" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="1"/>
+        <text x="165" y="62" text-anchor="middle" font-size="13" font-weight="600" fill="#1e40af">Main Agent</text>
+        <text x="165" y="80" text-anchor="middle" font-size="10" fill="#3b82f6">拆解任务 · 打包上下文</text>
+
+        <line x1="250" y1="66" x2="310" y2="66" class="flow-dash" stroke="#2563eb" stroke-width="1.6" marker-end="url(#arrB)"/>
+
+        <rect x="316" y="40" width="180" height="52" rx="10" fill="#eff6ff" stroke="#93c5fd" stroke-width="1"/>
+        <text x="406" y="62" text-anchor="middle" font-size="13" font-weight="600" fill="#1e40af">任务书 + 上下文注入</text>
+        <text x="406" y="80" text-anchor="middle" font-size="10" fill="#3b82f6">子任务描述 / 上游必要数据</text>
+
+        <line x1="496" y1="66" x2="556" y2="66" class="flow-dash" stroke="#2563eb" stroke-width="1.6" marker-end="url(#arrB)"/>
+
+        <rect x="562" y="40" width="140" height="52" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="1"/>
+        <text x="632" y="62" text-anchor="middle" font-size="13" font-weight="600" fill="#1e40af">Sub-agent</text>
+        <text x="632" y="80" text-anchor="middle" font-size="10" fill="#3b82f6">独立上下文接令</text>
+
+        <!-- 泳道二：横向 共享内存 -->
+        <rect x="80" y="158" width="170" height="52" rx="10" fill="#ccfbf1" stroke="#0d9488" stroke-width="1"/>
+        <text x="165" y="180" text-anchor="middle" font-size="13" font-weight="600" fill="#0f766e">Sub A · 检索</text>
+        <text x="165" y="198" text-anchor="middle" font-size="10" fill="#14b8a6">写入中间产物</text>
+
+        <line x1="250" y1="184" x2="310" y2="184" class="flow-dash" stroke="#0d9488" stroke-width="1.6" marker-end="url(#arrG)"/>
+
+        <rect x="316" y="158" width="180" height="52" rx="10" fill="#f0fdf4" stroke="#0d9488" stroke-width="1"/>
+        <text x="406" y="180" text-anchor="middle" font-size="13" font-weight="600" fill="#0f766e">共享内存 Blackboard</text>
+        <text x="406" y="198" text-anchor="middle" font-size="10" fill="#14b8a6">数据源 / 中间结果 / 状态</text>
+
+        <line x1="496" y1="184" x2="556" y2="184" class="flow-dash" stroke="#0d9488" stroke-width="1.6" marker-end="url(#arrG)"/>
+
+        <rect x="562" y="158" width="140" height="52" rx="10" fill="#ccfbf1" stroke="#0d9488" stroke-width="1"/>
+        <text x="632" y="180" text-anchor="middle" font-size="13" font-weight="600" fill="#0f766e">Sub B · 分析</text>
+        <text x="632" y="198" text-anchor="middle" font-size="10" fill="#14b8a6">读取上游产物</text>
+
+        <!-- 泳道三：上行 回调 -->
+        <rect x="80" y="286" width="170" height="52" rx="10" fill="#ffedd5" stroke="#ea580c" stroke-width="1"/>
+        <text x="165" y="308" text-anchor="middle" font-size="13" font-weight="600" fill="#c2410c">Sub-agent 完工</text>
+        <text x="165" y="326" text-anchor="middle" font-size="10" fill="#f97316">临时内存销毁</text>
+
+        <line x1="250" y1="312" x2="310" y2="312" class="flow-dash" stroke="#ea580c" stroke-width="1.6" marker-end="url(#arrO)"/>
+
+        <rect x="316" y="286" width="180" height="52" rx="10" fill="#fff7ed" stroke="#fdba74" stroke-width="1"/>
+        <text x="406" y="308" text-anchor="middle" font-size="13" font-weight="600" fill="#c2410c">摘要回调</text>
+        <text x="406" y="326" text-anchor="middle" font-size="10" fill="#f97316">检查点写入持久化</text>
+
+        <line x1="496" y1="312" x2="556" y2="312" class="flow-dash" stroke="#ea580c" stroke-width="1.6" marker-end="url(#arrO)"/>
+
+        <rect x="562" y="286" width="140" height="52" rx="10" fill="#ffedd5" stroke="#ea580c" stroke-width="1"/>
+        <text x="632" y="308" text-anchor="middle" font-size="13" font-weight="600" fill="#c2410c">Main Agent</text>
+        <text x="632" y="326" text-anchor="middle" font-size="10" fill="#f97316">汇总 · 仲裁 · 验收</text>
+      </svg>
+    </div>
+
+    <div class="rise grid grid-cols-3 gap-4 mt-3 max-w-5xl text-sm">
+      <div class="bg-blue-50 border border-blue-100 rounded-xl px-4 py-2.5"><b class="text-blue-800">下行 · 派活</b><br/><span class="text-slate-600">任务书注入独立上下文，对应第 2 页 STEP 1</span></div>
+      <div class="bg-teal-50 border border-teal-100 rounded-xl px-4 py-2.5"><b class="text-teal-800">横向 · 协作</b><br/><span class="text-slate-600">不直接互访，中间产物经 Blackboard 中转</span></div>
+      <div class="bg-orange-50 border border-orange-100 rounded-xl px-4 py-2.5"><b class="text-orange-800">上行 · 交活</b><br/><span class="text-slate-600">摘要回传，检查点落库，对应第 3 页三种内存</span></div>
+    </div>
+  </section>
+
+  <!-- P6 冲突仲裁(简述) -->
+  <section class="slide" data-title="冲突仲裁简述">
+    <p class="eyebrow rise">05 · 冲突解决</p>
+    <h2 class="rise text-4xl font-bold mt-3">意见不一致时，听谁的？</h2>
+    <p class="rise text-lg text-slate-600 mt-4 max-w-3xl">多个 Sub-agent 返回矛盾结果时，Main Agent 先给冲突分类，再按类型选策略——<b class="text-blue-600">事实找证据 · 观点看目标 · 方法算成本</b>。</p>
+
+    <div class="grid grid-cols-3 gap-5 mt-9 max-w-5xl">
+      <div class="rise card-hover bg-white rounded-2xl border-2 border-blue-200 p-5 path-glow text-center">
+        <span class="text-xs font-bold text-blue-600 bg-blue-50 rounded-full px-3 py-1">事实性冲突</span>
+        <h3 class="font-semibold text-lg mt-3">证据链回溯</h3>
+        <p class="text-slate-500 text-sm mt-2 leading-relaxed">不看结论看证据，信源评级 + 独立复现</p>
+      </div>
+      <div class="rise card-hover bg-white rounded-2xl border-2 border-violet-200 p-5 path-glow text-center">
+        <span class="text-xs font-bold text-violet-600 bg-violet-50 rounded-full px-3 py-1">观点性冲突</span>
+        <h3 class="font-semibold text-lg mt-3">元推理仲裁</h3>
+        <p class="text-slate-500 text-sm mt-2 leading-relaxed">让Main-agent进行推理</p>
+      </div>
+      <div class="rise card-hover bg-white rounded-2xl border-2 border-teal-200 p-5 path-glow text-center">
+        <span class="text-xs font-bold text-teal-600 bg-teal-50 rounded-full px-3 py-1">方法性冲突</span>
+        <h3 class="font-semibold text-lg mt-3">置信度加权</h3>
+        <p class="text-slate-500 text-sm mt-2 leading-relaxed">按历史Sub-agent的靠谱程度信任</p>
+      </div>
+    </div>
+
+    <div class="rise mt-8 max-w-5xl bg-amber-50 border border-amber-200 rounded-2xl px-6 py-4 flex items-center gap-5 text-sm">
+      <span class="font-bold text-amber-800 shrink-0">兜底</span>
+      <span class="text-slate-700">无法裁决时不强行二选一——高风险场景升级人工，一般场景<b>并列呈现分歧</b>，把选择权留给读者。</span>
+    </div>
+
+    <div class="rise mt-6 max-w-3xl bg-white rounded-2xl border border-slate-200 px-6 py-4">
+      <h3 class="font-semibold">本课小结</h3>
+      <p class="text-slate-500 text-sm mt-1 leading-relaxed">Multi-Agent 的本质是<b>组织工程</b>：Main 定目标、分任务、收报告；Sub 独立上下文、受限自治、用完即毁。</p>
+    </div>
+  </section>
+
+  <!-- P7 实战：WorkBuddy 中强制开启 Multi-Agent -->
+  <section class="slide" data-title="实战：WorkBuddy 开启 Multi-Agent">
+    <p class="eyebrow rise">06 · 实战</p>
+    <h2 class="rise text-4xl font-bold mt-2">在 WorkBuddy 中亲手触发一次 Multi-Agent</h2>
+    <p class="rise text-base text-slate-600 mt-2 max-w-4xl">选择 DeepSeek 模型，在提问中加入下面这段标签，即可强制开启 Multi-Agent 模式：</p>
+
+    <div class="rise mt-4 max-w-4xl bg-slate-800 rounded-2xl px-6 py-4 font-mono text-sm text-slate-100 shadow-lg">
+      <div class="text-slate-400">&lt;system-reminder&gt;</div>
+      <div class="text-emerald-300 pl-4">spawn sub-agents to perform this job</div>
+      <div class="text-slate-400">&lt;/system-reminder&gt;</div>
+    </div>
+
+    <div class="rise flex gap-5 mt-5 max-w-6xl items-start">
+      <figure class="flex-1 card-hover bg-white rounded-2xl border border-slate-200 p-3">
+        <img src="assets/spawn-agents.png" alt="WorkBuddy 深度思考中规划并行子代理" class="rounded-xl w-full border border-slate-100" />
+        <figcaption class="text-xs text-slate-500 mt-2 px-1">证据 ①：深度思考阶段，模型主动规划「I'll launch parallel: Agent 1 … Agent 2 …」——任务分解真实发生。</figcaption>
+      </figure>
+      <figure class="flex-1 card-hover bg-white rounded-2xl border border-slate-200 p-3">
+        <img src="assets/agent-tasks.png" alt="WorkBuddy 并行执行两个 general-purpose 子任务" class="rounded-xl w-full border border-slate-100" />
+        <figcaption class="text-xs text-slate-500 mt-2 px-1">证据 ②：两个 general-purpose 子代理并行执行（15 次 + 12 次工具调用）——Sub-agent 独立上下文、受限自治的实证。</figcaption>
+      </figure>
+    </div>
+
+    <div class="rise mt-4 max-w-6xl grid grid-cols-3 gap-4 text-sm">
+      <div class="bg-blue-50 border border-blue-100 rounded-xl px-4 py-2.5"><b class="text-blue-800">任务分解</b>：Main Agent 把调研拆成「报告清单」与「案例深挖」两条线</div>
+      <div class="bg-teal-50 border border-teal-100 rounded-xl px-4 py-2.5"><b class="text-teal-800">并行执行</b>：两个子代理同时开工，互不干扰</div>
+      <div class="bg-orange-50 border border-orange-100 rounded-xl px-4 py-2.5"><b class="text-orange-800">摘要回收</b>：子代理完成后结果回传，主线程统一汇总输出</div>
+    </div>
+  </section>
+
+</main>
+
+<button class="nav-btn" id="prev" style="right: 92px;" aria-label="上一页">←</button>
+<button class="nav-btn" id="next" style="right: 36px;" aria-label="下一页">→</button>
+<div class="page-indicator" id="indicator">1 / 7</div>
+
+<script>
+(function () {
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const total = slides.length;
+  let idx = 0;
+  const progress = document.getElementById('progress');
+  const indicator = document.getElementById('indicator');
+  const prevBtn = document.getElementById('prev');
+  const nextBtn = document.getElementById('next');
+
+  function show(n) {
+    n = Math.max(0, Math.min(total - 1, n));
+    if (n === idx && slides[n].classList.contains('active')) return;
+    slides.forEach((s, i) => {
+      s.classList.remove('active', 'exit-left');
+      if (i < n) s.classList.add('exit-left');
+    });
+    // 强制重启动画
+    const target = slides[n];
+    target.classList.remove('active');
+    void target.offsetWidth;
+    target.classList.add('active');
+    idx = n;
+    progress.style.width = ((idx + 1) / total * 100) + '%';
+    indicator.textContent = (idx + 1) + ' / ' + total;
+    prevBtn.disabled = idx === 0;
+    nextBtn.disabled = idx === total - 1;
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); show(idx + 1); }
+    if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); show(idx - 1); }
+    if (e.key === 'Home') show(0);
+    if (e.key === 'End') show(total - 1);
+  });
+  prevBtn.addEventListener('click', () => show(idx - 1));
+  nextBtn.addEventListener('click', () => show(idx + 1));
+
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (Math.abs(dx) > 50) show(idx + (dx < 0 ? 1 : -1));
+    touchX = null;
+  }, { passive: true });
+
+  prevBtn.disabled = true;
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="常州夜校第8课互动课件：从 localhost 到服务器，理解公网访问、SSH 密钥、容器选择与代码部署"
+    />
+    <meta name="theme-color" content="#101114" />
+    <title>从 localhost 到服务器｜第8课</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="styles.css?v=1" />
+  </head>
+  <body>
+    <div class="orientation-hint" aria-hidden="true">横屏观看，互动更完整</div>
+
+    <main id="deck" class="deck" aria-live="polite">
+      <section class="slide cover active" data-title="从 localhost 到服务器">
+        <p class="eyebrow">常州夜宵 · 第 8 课</p>
+        <h1>从 <em>localhost</em><br />到服务器</h1>
+        <p class="cover-lead">让上一节的代码，真正被别人访问</p>
+        <div class="cover-route" aria-hidden="true">
+          <span class="route-local">localhost</span>
+          <i></i>
+          <span class="route-server">公网服务器</span>
+          <b>HTTPS</b>
+        </div>
+        <p class="cover-caption">服务器 · 公网 · SSH · 容器 · 部署</p>
+        <aside class="speaker-note">
+          建议用时 2 分钟。不要从 IPv4、IPv6 定义开场。先承接上一节已经能在本机运行的代码，告诉学员今天要完成的是“让别人访问”。封面只建立方向，不提前解释技术名词。
+          [Sources] 本页为课程叙事，无外部非平凡主张。
+        </aside>
+      </section>
+
+      <section class="slide scene-slide" data-title="为什么我的链接别人打不开" data-reset="share-link">
+        <p class="eyebrow">01 · 先发一个链接</p>
+        <h2>我这里能打开，<br />发到群里<em>也能打开吗？</em></h2>
+        <div class="browser-scene">
+          <div class="browser-window">
+            <div class="browser-bar"><i></i><i></i><i></i><code>http://localhost:3000</code></div>
+            <div class="local-app">
+              <small>上一节课的程序</small>
+              <strong>运行成功</strong>
+              <span>只在这台电脑上提供服务</span>
+            </div>
+          </div>
+          <div class="chat-scene">
+            <div class="message mine">大家试试这个链接</div>
+            <div class="message reply" id="shareReply">等待同学打开…</div>
+            <button class="action-button" id="shareLink" type="button">发到群里</button>
+          </div>
+        </div>
+        <p class="scene-answer" id="shareAnswer">每台设备的 localhost，都指向它自己。</p>
+        <aside class="speaker-note">
+          建议用时 4 分钟。先问学员能不能打开，再点击“发到群里”。同学设备中的 localhost 指向同学自己的设备，不是教师电脑。让失败先发生，再给解释。
+          [Sources] localhost/loopback 的特殊用途可参考 RFC 6890：https://www.rfc-editor.org/rfc/rfc6890.html。
+        </aside>
+      </section>
+
+      <section class="slide" data-title="访问范围随网络位置改变" data-reset="reveal">
+        <p class="eyebrow">02 · 三次访问实验</p>
+        <h2>同一个程序，<br /><em>换个位置</em>结果就不同</h2>
+        <div class="experiment-list reveal-group" data-reveal-group="access">
+          <article data-reveal-item>
+            <small>实验一</small><strong>自己的电脑</strong><code>localhost:3000</code><b class="state yes">可以</b>
+          </article>
+          <article data-reveal-item>
+            <small>实验二</small><strong>同一 Wi-Fi</strong><code>192.168.x.x:3000</code><b class="state maybe">满足条件时可以</b>
+          </article>
+          <article data-reveal-item>
+            <small>实验三</small><strong>手机切到 5G</strong><code>192.168.x.x:3000</code><b class="state no">通常不可以</b>
+          </article>
+          <div class="reveal-conclusion" data-reveal-conclusion>
+            <strong>问题不一定在代码</strong><span>还可能在地址、网络路径和访问规则。</span>
+          </div>
+        </div>
+        <button class="action-button" type="button" data-reveal-next="access">开始实验</button>
+        <aside class="speaker-note">
+          建议用时 5 分钟。第二次实验只有在应用监听局域网地址、系统防火墙允许、Wi-Fi 没有客户端隔离时才可能成功；因此页面写“满足条件时可以”。第三次切换 5G 后，局域网地址没有公网意义。
+          [Sources] RFC 1918 私网地址：https://www.rfc-editor.org/info/rfc1918/。
+        </aside>
+      </section>
+
+      <section class="slide dark-slide" data-title="公开服务需要四个条件" data-reset="reveal">
+        <p class="eyebrow">03 · 今天要补齐什么</p>
+        <h2>让别人随时访问，<br />至少需要<em>四样东西</em></h2>
+        <div class="requirement-track reveal-group" data-reveal-group="requirements">
+          <article data-reveal-item><small>01</small><strong>持续运行的电脑</strong><span>服务器</span></article>
+          <i></i>
+          <article data-reveal-item><small>02</small><strong>别人找得到的地址</strong><span>公网 IP / 域名</span></article>
+          <i></i>
+          <article data-reveal-item><small>03</small><strong>运行代码的系统</strong><span>Linux / Windows</span></article>
+          <i></i>
+          <article data-reveal-item><small>04</small><strong>安全管理入口</strong><span>SSH</span></article>
+          <div class="reveal-conclusion" data-reveal-conclusion>
+            <strong>今天的路线</strong><span>找服务器 → 安全进入 → 判断方案 → 完成部署</span>
+          </div>
+        </div>
+        <button class="action-button" type="button" data-reveal-next="requirements">补齐第一项</button>
+        <aside class="speaker-note">
+          建议用时 4 分钟。让学员先猜代码公开运行还缺什么，再逐项揭示。四项会成为后面课程的章节路标。
+          [Sources] 本页为教学归纳，无外部数据主张。
+        </aside>
+      </section>
+
+      <section class="slide definition-slide" data-title="服务器是一种角色">
+        <p class="eyebrow">04 · 先认识服务器</p>
+        <h2>服务器不是神秘机器，<br />而是一台<em>承担服务角色</em>的电脑</h2>
+        <div class="role-transform">
+          <div class="role-device">
+            <span class="screen"><code>$ npm start</code></span>
+            <strong>普通电脑</strong>
+            <small>自己使用 · 可能关机</small>
+          </div>
+          <div class="role-equals">＋</div>
+          <ul>
+            <li>长时间运行</li>
+            <li>稳定网络</li>
+            <li>远程管理</li>
+            <li>对外提供服务</li>
+          </ul>
+          <div class="role-equals">＝</div>
+          <div class="role-device server">
+            <span class="screen"><code>200 OK</code></span>
+            <strong>服务器</strong>
+            <small>持续响应其他设备</small>
+          </div>
+        </div>
+        <blockquote>“服务器”描述它在做什么，不只描述它长什么样。</blockquote>
+        <aside class="speaker-note">
+          建议用时 3 分钟。服务器可以是机架设备、云端虚拟机，甚至是一台承担服务角色的普通电脑。课堂重点是角色：持续接收并响应其他设备请求。
+          [Sources] 本页为基础概念归纳。
+        </aside>
+      </section>
+
+      <section class="slide" data-title="IP 找电脑，端口找服务" data-reset="reveal">
+        <p class="eyebrow">05 · 互联网怎样找到服务</p>
+        <h2>先找到电脑，<br />再找到电脑里的<em>那项服务</em></h2>
+        <div class="address-route reveal-group" data-reveal-group="address">
+          <article data-reveal-item><small>人记忆</small><strong>example.com</strong><span>域名</span></article>
+          <i></i>
+          <article data-reveal-item><small>网络找电脑</small><strong>203.0.113.10</strong><span>通过 DNS 域名解析到 IP 地址</span></article>
+          <i></i>
+          <article data-reveal-item><small>电脑找服务</small><strong>:3000</strong><span>服务端口</span></article>
+          <div class="reveal-conclusion" data-reveal-conclusion>
+            <strong>地址正确还不够</strong><span>程序、监听端口、安全组和防火墙都要允许请求通过。</span>
+          </div>
+        </div>
+        <button class="action-button" type="button" data-reveal-next="address">从域名开始</button>
+        <aside class="speaker-note">
+          建议用时 4 分钟。用“地址”和“入口”解释，不深入 DNS 递归流程。203.0.113.0/24 是文档示例地址段，不是真实目标服务器。端口是传输层服务标识之一，实际可达还取决于完整路径。
+          [Sources] 示例地址 RFC 5737：https://www.rfc-editor.org/info/rfc5737/；IANA 端口注册表：https://www.iana.org/assignments/service-names-port-numbers/。
+        </aside>
+      </section>
+
+      <section class="slide comparison-slide" data-title="IPv4 与 IPv6 的差异" data-reset="reveal">
+        <p class="eyebrow">06 · IPv4 与 IPv6</p>
+        <h2>地址不够用之后，<br />互联网把地址空间<em>扩得更大</em></h2>
+        <div class="comparison-table reveal-group" data-reveal-group="ip">
+          <header><strong class="side-a">IPv4</strong><b>VS</b><strong class="side-b">IPv6</strong></header>
+          <div class="compare-row" data-reveal-item><span>32 位</span><b>地址长度</b><span>128 位</span></div>
+          <div class="compare-row" data-reveal-item><span>约 43 亿个地址</span><b>地址规模</b><span>极其庞大</span></div>
+          <div class="compare-row" data-reveal-item><span>家庭常见 NAT/CGNAT（多个设备使用运营商提供的一个公网 IP ）</span><b>常见连接方式</b><span>通常不靠 NAT 节省地址（因为地址足够丰富）</span></div>
+          <div class="compare-row" data-reveal-item><span>有公网地址也要过防火墙</span><b>是否自动可访问</b><span>有全球地址也要过防火墙</span></div>
+          <div class="reveal-conclusion" data-reveal-conclusion>
+            <strong>现实答案不是谁立刻淘汰谁</strong><span>很多网络仍以 IPv4 与 IPv6 双栈共存。</span>
+          </div>
+        </div>
+        <button class="action-button" type="button" data-reveal-next="ip">比较第一项</button>
+        <aside class="speaker-note">
+          建议用时 5 分钟。重点讲地址长度、NAT 需求和防火墙边界。不要把 IPv6 讲成“拿到地址就天然暴露公网”，也不要把双栈现状讲成永久结论。
+          [Sources] IPv4 32 位：RFC 791 https://www.rfc-editor.org/info/rfc791/；IPv6 128 位：RFC 8200 https://www.rfc-editor.org/info/rfc8200/。
+        </aside>
+      </section>
+
+      <section class="slide quiz-slide" data-title="这个地址公网找得到吗" data-reset="address-quiz">
+        <p class="eyebrow">07 · 地址判断器</p>
+        <h2>看到一个 IP，<br />先问：它属于<em>哪种地址</em>？</h2>
+        <div class="address-quiz">
+          <div class="quiz-options" role="group" aria-label="选择一个地址">
+            <button type="button" data-address-kind="private"><code>192.168.1.23</code><span>它是什么？</span></button>
+            <button type="button" data-address-kind="shared"><code>100.64.12.8</code><span>它是什么？</span></button>
+            <button type="button" data-address-kind="example"><code>203.0.113.10</code><span>它是什么？</span></button>
+          </div>
+          <div class="quiz-result" id="addressResult" aria-live="polite">
+            <small>等待选择</small>
+            <strong>点击一个地址</strong>
+            <p>先判断地址性质，再讨论能不能从公网访问。</p>
+          </div>
+        </div>
+        <aside class="speaker-note">
+          建议用时 4 分钟。192.168.1.23 属于 RFC 1918 私网；100.64.12.8 属于 RFC 6598 共享地址空间；203.0.113.10 属于文档示例地址，不应被当作真实公网服务器。页面特意不放真实公网地址。
+          [Sources] RFC 1918：https://www.rfc-editor.org/info/rfc1918/；RFC 6598：https://www.rfc-editor.org/info/rfc6598/；RFC 5737：https://www.rfc-editor.org/info/rfc5737/。
+        </aside>
+      </section>
+
+      <section class="slide direction-slide" data-title="出站能走，入站未必能回" data-reset="direction">
+        <p class="eyebrow">08 · 最容易混淆的一点</p>
+        <h2>家里电脑能上网，<br />不等于公网能<em>主动找到它</em></h2>
+        <div class="direction-stage">
+          <div class="endpoint home"><strong>家庭电脑</strong><small>192.168.1.23</small></div>
+          <div class="direction-lanes">
+            <button type="button" data-direction="outbound"><span>出站</span><i></i><b>主动访问网站</b></button>
+            <button type="button" data-direction="inbound"><span>入站</span><i></i><b>公网主动连接</b></button>
+          </div>
+          <div class="endpoint web"><strong>互联网</strong><small>公开网站</small></div>
+        </div>
+        <div class="direction-result" id="directionResult">
+          <strong>先选择一个方向</strong><span>出站和入站走的是同一条物理网络，却受不同连接状态影响。</span>
+        </div>
+        <aside class="speaker-note">
+          建议用时 4 分钟。点击“出站”时说明 NAT 会为主动连接建立映射；点击“入站”时说明没有现成映射或明确转发规则，请求无法定位到内部设备。NAT 与防火墙不是同一个概念，但家庭路由器常同时承担两种功能。
+          [Sources] RFC 3022 传统 NAT：https://www.rfc-editor.org/info/rfc3022/。
+        </aside>
+      </section>
+
+      <!-- <section class="slide network-slide" data-title="家庭网络为什么难以被主动访问" data-reset="reveal">
+        <p class="eyebrow">09 · 两层地址转换</p>
+        <h2>请求要穿过家庭路由器，<br />还可能遇到<em>运营商 CGNAT</em></h2>
+        <div class="network-layers reveal-group" data-reveal-group="cgnat">
+          <article data-reveal-item><small>设备</small><strong>家庭电脑</strong><code>192.168.1.23</code></article>
+          <i></i>
+          <article data-reveal-item><small>第一层</small><strong>家里各个设备共享家庭路由器 NAT</strong><code>家庭 WAN 地址</code></article>
+          <i></i>
+          <article data-reveal-item><small>第二层</small><strong>多户共享运营商 CGNAT</strong><code>100.64.0.0/10</code></article>
+          <i></i>
+          <article data-reveal-item><small>共享出口</small><strong>公网 IPv4</strong><code>多个家庭共用</code></article>
+          <div class="reveal-conclusion blocked" data-reveal-conclusion>
+            <strong>公网请求没有明确的内部目标</strong><span>家庭路由器上的端口映射也无法穿透上游运营商的共享映射。</span>
+          </div>
+        </div>
+        <button class="action-button" type="button" data-reveal-next="cgnat">从家庭电脑出发</button>
+        <aside class="speaker-note">
+          建议用时 5 分钟。三大运营商不同地区和产品不完全相同，课堂只讲家庭宽带常见组合，不把 CGNAT 说成所有线路的绝对状态。企业宽带或特殊套餐可能提供固定公网地址。
+          [Sources] 共享地址与 CGN 部署：RFC 6598 https://www.rfc-editor.org/info/rfc6598/；IP 地址共享影响：RFC 6269 https://www.rfc-editor.org/info/rfc6269/。
+        </aside>
+      </section> -->
+
+      <section class="slide nat-tree-slide" data-title="家庭网络为什么难以被主动访问">
+        <p class="eyebrow">09 · 两层地址转换</p>
+        <h2>请求要穿过家庭路由器，<br />还可能遇到<em>运营商 CGNAT</em></h2>
+
+        <div class="nat-tree" aria-label="家庭设备经过各自的家庭路由器 NAT，汇聚到运营商 CGNAT，再连接到共享公网出口">
+          <svg class="nat-icon-defs" aria-hidden="true">
+            <defs>
+              <symbol id="nat-icon-phone" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2" /><path d="M10 18.5h4" /></symbol>
+              <symbol id="nat-icon-laptop" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="12" rx="1" /><path d="M2 20h20M9 20l1-4h4l1 4" /></symbol>
+              <symbol id="nat-icon-tv" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="14" rx="1" /><path d="M8 22h8M12 18v4" /></symbol>
+              <symbol id="nat-icon-washer" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="1" /><circle cx="12" cy="14" r="5" /><path d="M7 6h1M11 6h5" /></symbol>
+              <symbol id="nat-icon-ac" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="11" rx="2" /><path d="M6 11h12M7 18c1.5 1.5 3 1.5 4.5 0s3-1.5 4.5 0" /></symbol>
+              <symbol id="nat-icon-router" viewBox="0 0 24 24"><rect x="2" y="9" width="20" height="11" rx="1" /><path d="M6 9V4M18 9V4M6 15h.01M10 15h.01M15 15h4" /></symbol>
+              <symbol id="nat-icon-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M2 12h20M12 2c3 3 4 6 4 10s-1 7-4 10c-3-3-4-6-4-10s1-7 4-10Z" /></symbol>
+            </defs>
+          </svg>
+
+          <article class="nat-tree-node nat-public-node">
+            <svg aria-hidden="true"><use href="#nat-icon-globe" /></svg>
+            <div><small>第四层 · 共享出口</small><strong>公网</strong><code>多个家庭共享公网 IPv4</code></div>
+          </article>
+          <div class="nat-trunk" aria-hidden="true"></div>
+
+          <article class="nat-tree-node nat-cgnat-node">
+            <svg aria-hidden="true"><use href="#nat-icon-router" /></svg>
+            <div><small>第三层 · 各个家庭 NAT 共享</small><strong>运营商 CGNAT</strong><code>100.64.0.0/10</code></div>
+          </article>
+          <div class="nat-fork" aria-hidden="true"><i></i><i></i></div>
+
+          <div class="nat-households">
+            <section class="nat-household">
+              <article class="nat-tree-node nat-home-node">
+                <svg aria-hidden="true"><use href="#nat-icon-router" /></svg>
+                <div><small>第二层 · 你家</small><strong>你家的路由器 NAT</strong><code>家庭 WAN 地址</code></div>
+              </article>
+              <p class="nat-device-caption">第一层 · 你家的各类智能设备</p>
+              <div class="nat-device-fork nat-devices-four" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="nat-device-row nat-devices-four">
+                <article class="nat-device"><svg aria-hidden="true"><use href="#nat-icon-phone" /></svg><strong>手机</strong><code>192.168.1.11</code></article>
+                <article class="nat-device"><svg aria-hidden="true"><use href="#nat-icon-laptop" /></svg><strong>电脑</strong><code>192.168.1.12</code></article>
+                <article class="nat-device"><svg aria-hidden="true"><use href="#nat-icon-tv" /></svg><strong>电视</strong><code>192.168.1.13</code></article>
+                <article class="nat-device"><svg aria-hidden="true"><use href="#nat-icon-ac" /></svg><strong>空调</strong><code>192.168.1.14</code></article>
+              </div>
+            </section>
+
+            <section class="nat-household">
+              <article class="nat-tree-node nat-home-node">
+                <svg aria-hidden="true"><use href="#nat-icon-router" /></svg>
+                <div><small>第二层 · 我家</small><strong>我家的路由器 NAT</strong><code>家庭 WAN 地址</code></div>
+              </article>
+              <p class="nat-device-caption">第一层 · 我家的各类智能设备</p>
+              <div class="nat-device-fork nat-devices-three" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="nat-device-row nat-devices-three">
+                <article class="nat-device"><svg aria-hidden="true"><use href="#nat-icon-phone" /></svg><strong>手机</strong><code>192.168.2.11</code></article>
+                <article class="nat-device"><svg aria-hidden="true"><use href="#nat-icon-laptop" /></svg><strong>电脑</strong><code>192.168.2.12</code></article>
+                <article class="nat-device"><svg aria-hidden="true"><use href="#nat-icon-washer" /></svg><strong>洗衣机</strong><code>192.168.2.13</code></article>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="nat-tree-conclusion">
+          <strong>公网请求没有明确的内部目标</strong>
+          <span>家庭路由器上的端口映射也无法穿透上游运营商的共享映射。</span>
+          <b>设备 → 家庭 NAT → CGNAT → 公网</b>
+        </div>
+        <aside class="speaker-note">
+          建议用时 5 分钟。沿树状图自下而上讲：手机、电脑、电视、洗衣机、空调等智能设备先共享自己家庭的路由器 NAT；你家的 NAT 和我家的 NAT 再共享运营商 CGNAT；最后经过共享公网出口。三大运营商不同地区和产品不完全相同，课堂只讲家庭宽带常见组合，不把 CGNAT 说成所有线路的绝对状态。企业宽带或特殊套餐可能提供固定公网地址。
+          [Sources] 共享地址与 CGN 部署：RFC 6598 https://www.rfc-editor.org/info/rfc6598/；IP 地址共享影响：RFC 6269 https://www.rfc-editor.org/info/rfc6269/。
+        </aside>
+      </section>
+
+      <section class="slide comparison-slide" data-title="家庭电脑还是云服务器" data-reset="reveal">
+        <p class="eyebrow">10 · 放在哪里运行</p>
+        <h2>家庭电脑，<br />还是<em>云服务器</em>？</h2>
+        <div class="comparison-table hero-compare reveal-group" data-reveal-group="home-cloud">
+          <header><strong class="side-a">家庭电脑</strong><b>VS</b><strong class="side-b">云服务器</strong></header>
+          <div class="compare-row" data-reveal-item><span>可能动态、共享或无公网 IPv4</span><b>公网地址</b><span>更容易获得固定公网地址</span></div>
+          <div class="compare-row" data-reveal-item><span>通常下载高、上传相对低</span><b>上传能力</b><span>按套餐提供对外带宽</span></div>
+          <div class="compare-row" data-reveal-item><span>关机、断电、重新拨号</span><b>持续运行</b><span>机房环境，适合长期运行</span></div>
+          <div class="compare-row" data-reveal-item><span>NAT 与运营商策略共同影响</span><b>入站访问</b><span>安全组与防火墙可配置</span></div>
+          <div class="reveal-conclusion" data-reveal-conclusion>
+            <strong>本地适合开发，服务器适合公开服务</strong><span>核心优势是公网可达、稳定和可管理，不是简单地“永远更快”。</span>
+          </div>
+        </div>
+        <button class="action-button" type="button" data-reveal-next="home-cloud">开始比较</button>
+        <aside class="speaker-note">
+          建议用时 5 分钟。不要承诺所有云服务器都是对称带宽或无限流量。不同云产品的带宽、计费和公网能力取决于具体配置。
+          [Sources] 本页为网络产品的一般性比较，具体能力应以所选云厂商产品文档和合同为准。
+        </aside>
+      </section>
+
+      <section class="slide selector-slide" data-title="服务器系统要按场景选择" data-reset="os-selector">
+        <p class="eyebrow">11 · 服务器操作系统</p>
+        <h2>服务器上可选择的操作系统</h2>
+        <div class="scenario-selector">
+          <div class="selector-options" role="group" aria-label="选择服务器任务">
+            <button type="button" data-os="web" class="active">网站 / API / Docker</button>
+            <button type="button" data-os="enterprise">Windows 企业服务</button>
+            <button type="button" data-os="apple">iOS / macOS 构建</button>
+          </div>
+          <div class="selector-result" id="osResult">
+            <small>常见首选</small>
+            <strong>Linux</strong>
+            <p>Ubuntu、Debian、Arch Linux 等，适合网站、API、数据库和容器。</p>
+            <div><span>管理入口</span><b>SSH</b></div>
+          </div>
+        </div>
+        <p class="correction"><strong>需要订正：</strong>macOS 不是 Linux 的分支；它基于 Darwin，具有 Mach、BSD 与 Unix 风格环境。</p>
+        <aside class="speaker-note">
+          建议用时 5 分钟。点击三个场景，让学员观察操作系统选择来自软件依赖，而不是品牌高低。Windows Server 常见于 IIS、Active Directory 和 Windows 专用软件；macOS 主要用于 Apple 平台构建与测试。
+          [Sources] Apple Darwin 与 OS X 架构：https://developer.apple.com/library/archive/documentation/Darwin/Conceptual/KernelProgramming/Architecture/Architecture.html。
+        </aside>
+      </section>
+
+      <section class="slide stack-slide" data-title="服务器上有入口、应用和数据" data-reset="reveal">
+        <p class="eyebrow">12 · 常见服务器服务</p>
+        <h2>一台服务器里，<br />不同服务承担<em>不同职责</em></h2>
+        <div class="service-stack reveal-group" data-reveal-group="services">
+          <article data-reveal-item><small>管理入口</small><strong>SSH</strong><span>远程终端 · 常见端口 22</span></article>
+          <article data-reveal-item><small>公网入口</small><strong>Nginx / Caddy</strong><span>用来提供网页和静态文件，也能作为反向代理，把请求转发给后端服务，并实现负载均衡。</span></article>
+          <article data-reveal-item><small>应用层</small><strong>Node / Python / Java / .NET</strong><span>业务代码的运行环境，需要在服务器上创建</span></article>
+          <article data-reveal-item><small>数据层</small><strong>PostgreSQL / MySQL / Redis</strong><span>数据与缓存通常不直接暴露公网</span></article>
+          <div class="reveal-conclusion" data-reveal-conclusion>
+            <strong>端口只是入口编号</strong><span>公开哪些端口，要由服务职责和最小暴露原则决定。</span>
+          </div>
+        </div>
+        <button class="action-button" type="button" data-reveal-next="services">点亮第一层</button>
+        <aside class="speaker-note">
+          建议用时 4 分钟。22、80、443 是常见注册端口，不代表所有部署必须采用默认端口。数据库端口不要为了“方便连接”直接开放公网。
+          [Sources] IANA 服务名与端口注册表：https://www.iana.org/assignments/service-names-port-numbers/。
+        </aside>
+      </section>
+
+      <section class="slide comparison-slide" data-title="SSH 密钥让 AI 不必知道密码" data-reset="reveal">
+        <p class="eyebrow">13 · SSH 认证方式</p>
+        <h2>让 AI 连接，把密码告诉 AI 是一件危险的事情</em></h2>
+        <div class="comparison-table auth-compare reveal-group" data-reveal-group="auth">
+          <header><strong class="side-a">密码登录</strong><b>VS</b><strong class="side-b">密钥登录</strong></header>
+          <div class="compare-row" data-reveal-item><span>证明“我知道口令”</span><b>验证依据</b><span>证明“我持有私钥”</span></div>
+          <div class="compare-row" data-reveal-item><span>容易误入复制密码</span><b>交给 AI？</b><span>不需要告诉 AI 服务器密码</span></div>
+          <div class="compare-row" data-reveal-item><span>服务器验证密码</span><b>服务器保存</b><span>服务器只保存公钥</span></div>
+          <div class="compare-row" data-reveal-item><span>初次登录或应急</span><b>常见用途</b><span>日常连接与受控自动化</span></div>
+          <div class="reveal-conclusion" data-reveal-conclusion>
+            <strong>“免密”不是没有认证</strong><span>它只是从密码认证切换为公钥认证。</span>
+          </div>
+        </div>
+        <button class="action-button" type="button" data-reveal-next="auth">比较验证方式</button>
+        <aside class="speaker-note">
+          建议用时 5 分钟。密码仍可能用于首次安装公钥，但由用户直接在终端输入。私钥不能上传服务器或粘贴进聊天。课程使用独立密钥，便于后续撤销。
+          [Sources] OpenSSH sshd 认证方法：https://man.openbsd.org/sshd_config；ssh-keygen：https://man.openbsd.org/ssh-keygen.1。
+        </aside>
+      </section>
+
+      <section class="slide ssh-slide" data-title="私钥留本地，服务器只放公钥" data-reset="reveal">
+        <p class="eyebrow">14 · SSH 密钥验证</p>
+        <h2>服务器验证的是你<em>持有私钥</em>，<br />不是让你发送私钥</h2>
+        <div class="ssh-flow reveal-group" data-reveal-group="ssh-flow">
+          <article data-reveal-item><small>本地电脑</small><strong>SSH 加密算法生成密钥对</strong><span>私钥 + 公钥</span></article>
+          <i></i>
+          <article data-reveal-item><small>只发送这一份</small><strong>服务器安装公钥</strong><span>authorized_keys</span></article>
+          <i></i>
+          <article data-reveal-item><small>连接时</small><strong>本地设备的私钥发起签名挑战</strong><span>私钥不离开本地</span></article>
+          <i></i>
+          <article data-reveal-item><small>验证通过</small><strong>建立加密连接</strong><span>ssh course-server</span></article>
+          <div class="reveal-conclusion" data-reveal-conclusion>
+            <strong>秘密留在本地</strong><span>需要撤销时，从服务器移除对应公钥即可。</span>
+          </div>
+        </div>
+        <button class="action-button" type="button" data-reveal-next="ssh-flow">生成密钥对</button>
+        <aside class="speaker-note">
+          建议用时 5 分钟。首次连接还要核对服务器主机指纹，避免连接到错误主机。不要在没有新终端验证的情况下关闭密码登录。
+          [Sources] OpenSSH authorized_keys 格式与公钥认证：https://man.openbsd.org/sshd.8。
+        </aside>
+      </section>
+
+      <section class="slide prompt-slide" data-title="让 AI 一步一步配置 SSH" data-reset="reveal">
+        <p class="eyebrow">15 · 提示词一</p>
+        <h2>好的 SSH 提示词，<br />会先限制 AI 的<em>每一步</em></h2>
+        <div class="prompt-anatomy reveal-group" data-reveal-group="ssh-prompt">
+          <article data-reveal-item><small>01</small><strong>一次只做一步</strong><span>说明目的、命令、预期结果，再等待用户返回</span></article>
+          <article data-reveal-item><small>02</small><strong>不传秘密</strong><span>密码、私钥、口令由用户在终端直接输入</span></article>
+          <article data-reveal-item><small>03</small><strong>先检查再创建</strong><span>避免覆盖已有密钥，为课程服务器使用独立密钥</span></article>
+          <article data-reveal-item><small>04</small><strong>先测试再收口</strong><span>新终端连接成功后，才考虑调整密码登录</span></article>
+          <div class="reveal-conclusion" data-reveal-conclusion>
+            <strong>最终得到</strong><span>一个可撤销、可复用、无需把服务器密码交给 AI 的连接别名。</span>
+          </div>
+        </div>
+        <div class="button-row">
+          <button class="action-button" type="button" data-reveal-next="ssh-prompt">查看第一条规则</button>
+          <button class="secondary-button" type="button" data-copy-prompt="ssh">复制完整提示词</button>
+        </div>
+        <aside class="speaker-note">
+          建议用时 5 分钟。主页面不朗读完整提示词，只讲四个控制点。复制按钮会复制 prompts/01-SSH免密登录引导.txt 的同版内容。
+          [Sources] 安全流程基于 OpenSSH 公钥认证与最小权限的一般实践。
+        </aside>
+      </section>
+
+      <section class="slide inspection-slide" data-title="连上服务器先做只读体检" data-reset="reveal">
+        <p class="eyebrow">16 · AI 已经连上服务器</p>
+        <h2>让 AI 探索服务器上有什么</em></h2>
+        <div class="inspection-report reveal-group" data-reveal-group="inspection">
+          <article data-reveal-item><small>系统</small><strong>Ubuntu 24.04 · x86_64</strong><span>发行版、内核、架构</span></article>
+          <article data-reveal-item><small>计算</small><strong>2 vCPU · 4 GB RAM</strong><span>CPU、内存、Swap、负载</span></article>
+          <article data-reveal-item><small>存储</small><strong>80 GB · 可用 61 GB</strong><span>分区、磁盘与剩余空间</span></article>
+          <article data-reveal-item><small>运行环境</small><strong>Git · Docker · Node.js</strong><span>版本、端口与现有服务</span></article>
+          <div class="reveal-conclusion" data-reveal-conclusion>
+            <strong>最后才做判断</strong><span>它是否适合上一节代码？瓶颈会出现在 CPU、内存、磁盘还是网络？</span>
+          </div>
+        </div>
+        <div class="button-row">
+          <button class="action-button" type="button" data-reveal-next="inspection">生成第一项</button>
+          <button class="secondary-button" type="button" data-copy-prompt="inspection">复制只读体检提示词</button>
+        </div>
+        <aside class="speaker-note">
+          建议用时 6 分钟。页面数值是课堂示例，不代表真实服务器。让 AI 只执行只读命令，并在任何 sudo、安装、写入或重启操作前停止。
+          [Sources] 本页数值为虚构课堂示例，不作为产品规格或采购依据。
+        </aside>
+      </section>
+
+      <!-- <section class="slide layers-slide" data-title="容器工具、运行时和代理不是一回事" data-reset="reveal">
+        <p class="eyebrow">17 · 先把层级放对</p>
+        <h2>“用什么容器”之前，<br />先分清每个名字<em>负责什么</em></h2>
+        <div class="term-layers reveal-group" data-reveal-group="container-roles">
+          <article data-reveal-item><small>运行工具</small><strong>Docker / Podman</strong><span>创建和运行容器</span></article>
+          <article data-reveal-item><small>应用运行时</small><strong>Node / Python / JDK</strong><span>执行项目代码</span></article>
+          <article data-reveal-item><small>公网入口</small><strong>Nginx / Caddy</strong><span>静态文件、HTTPS、反向代理</span></article>
+          <article data-reveal-item><small>多服务管理</small><strong>Docker Compose</strong><span>声明容器、网络和数据卷</span></article>
+          <div class="reveal-conclusion" data-reveal-conclusion>
+            <strong>这些不是同一个选择题</strong><span>一个部署方案可能同时包含其中多个角色。</span>
+          </div>
+        </div>
+        <button class="action-button" type="button" data-reveal-next="container-roles">放入第一层</button>
+        <aside class="speaker-note">
+          建议用时 5 分钟。先把“容器”“镜像”“运行时”“反向代理”“应用服务器”分层，再进入具体选择，避免把 Docker、Nginx 和 Tomcat当成同一类产品。
+          [Sources] Docker 容器概念：https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-container/；Docker Compose：https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-docker-compose/。
+        </aside>
+      </section> -->
+
+      <!-- <section class="slide role-slide" data-title="Nginx 与 Tomcat 可以合作" data-reset="reveal">
+        <p class="eyebrow">18 · 一场会变形的 VS</p>
+        <h2>Nginx 和 Tomcat，<br />到底谁<em>更适合</em>？</h2>
+        <div class="role-compare reveal-group" data-reveal-group="nginx-tomcat">
+          <header><strong>Nginx</strong><b class="role-symbol"><span class="vs">VS</span><span class="plus">＋</span></b><strong>Tomcat</strong></header>
+          <div class="compare-row" data-reveal-item><span>静态文件、代理、TLS 入口</span><b>主要角色</b><span>Java Servlet 应用服务器</span></div>
+          <div class="compare-row" data-reveal-item><span>接收公网 HTTP 请求</span><b>常见位置</b><span>运行 Java Web 应用</span></div>
+          <div class="compare-row" data-reveal-item><span>可以转发给后端</span><b>能否合作</b><span>可以接收代理请求</span></div>
+          <div class="reveal-conclusion role-merge" data-reveal-conclusion>
+            <strong>公网 → Nginx → Tomcat → Java 应用</strong><span>Spring Boot 可执行 JAR 通常已有内置服务器，不默认再加外部 Tomcat。</span>
+          </div>
+        </div>
+        <button class="action-button" type="button" data-reveal-next="nginx-tomcat">比较第一项</button>
+        <aside class="speaker-note">
+          建议用时 5 分钟。最后一步让 VS 变成加号，帮助学员记住二者可以合作。Tomcat 主要面向 Servlet/JSP；Nginx 官方文档覆盖静态内容和代理服务。
+          [Sources] Nginx 初学者指南：https://nginx.org/en/docs/beginners_guide.html；Apache Tomcat 文档：https://tomcat.apache.org/tomcat-11.0-doc/；Spring Boot 运行可执行 JAR：https://docs.spring.io/spring-boot/reference/using/running-your-application.html。
+        </aside>
+      </section> -->
+
+      <!-- <section class="slide matcher-slide" data-title="项目类型决定部署方式" data-reset="deployment-matcher">
+        <p class="eyebrow">18 · 部署匹配器</p>
+        <h2>这个项目，<br />应该<em>怎么部署</em>？</h2>
+        <div class="deployment-matcher">
+          <div class="matcher-options" role="group" aria-label="选择项目类型">
+            <button type="button" data-project="static">静态网站</button>
+            <button type="button" data-project="node">Node.js</button>
+            <button type="button" data-project="python">Python</button>
+            <button type="button" data-project="jar" class="active">Spring Boot JAR</button>
+            <button type="button" data-project="war">Java WAR</button>
+          </div>
+          <div class="matcher-path">
+            <span>识别项目</span><i></i><span>选择运行时</span><i></i><span>决定入口</span>
+          </div>
+          <div class="matcher-result" id="deploymentResult">
+            <small>推荐方案</small>
+            <strong>JRE 应用容器</strong>
+            <b>＋</b>
+            <strong>Nginx / Caddy 反向代理</strong>
+            <p>JAR 通常使用内置 HTTP 服务器，不需要额外部署外部 Tomcat。</p>
+          </div>
+        </div>
+        <aside class="speaker-note">
+          建议用时 7 分钟。逐个让学员预测：静态网站、Node、Python、JAR、WAR 分别需要什么。推荐结果是常见起点，不替代对项目文件、依赖、端口、持久化和现有基础设施的实际检查。
+          [Sources] Spring Boot 可执行 JAR：https://docs.spring.io/spring-boot/reference/using/running-your-application.html；Tomcat 文档：https://tomcat.apache.org/tomcat-11.0-doc/。
+        </aside>
+      </section> -->
+
+      <!-- <section class="slide comparison-slide" data-title="systemd、Docker 与 Compose 解决不同复杂度" data-reset="reveal">
+        <p class="eyebrow">19 · 运行方式怎么选</p>
+        <h2>容器不是目标，<br /><em>可维护地运行</em>才是目标</h2>
+        <div class="three-way-table reveal-group" data-reveal-group="runtime-choice">
+          <header><span>systemd</span><span>单个 Docker</span><span>Docker Compose</span></header>
+          <div data-reveal-item><b>更适合</b><span>一个简单服务</span><span>一个可重复环境</span><span>多个相关服务</span></div>
+          <div data-reveal-item><b>优势</b><span>直接、系统原生</span><span>环境一致、便于交付</span><span>统一声明网络与数据卷</span></div>
+          <div data-reveal-item><b>代价</b><span>与服务器环境耦合</span><span>需要维护镜像</span><span>配置和运维更多</span></div>
+          <div data-reveal-item><b>典型例子</b><span>单个 JAR 或脚本</span><span>Node/Python 应用</span><span>应用 + 代理 + 缓存</span></div>
+          <div class="reveal-conclusion" data-reveal-conclusion>
+            <strong>先看复杂度，再选工具</strong><span>简单服务不必为了“看起来专业”强行拆成多个容器。</span>
+          </div>
+        </div>
+        <button class="action-button" type="button" data-reveal-next="runtime-choice">比较使用场景</button>
+        <aside class="speaker-note">
+          建议用时 5 分钟。systemd、Docker 和 Compose 都可以是正确答案，取决于服务数量、环境一致性、团队习惯和维护责任。数据库也可能使用云托管服务，而不是自己放进 Compose。
+          [Sources] Docker Compose 多容器说明：https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-docker-compose/；systemd.service：https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html。
+        </aside>
+      </section> -->
+
+      <section class="slide ai-flow-slide" data-title="先调查，再确认，后执行" data-reset="reveal">
+        <p class="eyebrow">17 · AI 服务器协作</p>
+        <h2>提示词不要简单写“帮我部署”<br />它可能跳过<em>所有关键判断</em></h2>
+        <div class="ai-paths reveal-group" data-reveal-group="ai-flow">
+          <div class="unsafe-path">
+            <small>直接执行</small>
+            <strong>帮我部署一下</strong>
+            <span>安装软件 → 改端口 → 覆盖配置</span>
+            <b>风险：不知道改了什么，也不知道怎样回退</b>
+          </div>
+          <div class="safe-path">
+            <small>受控流程</small>
+            <ol>
+              <li data-reveal-item><b>1</b>只读检查服务器和项目</li>
+              <li data-reveal-item><b>2</b>比较方案，给出首选与备选</li>
+              <li data-reveal-item><b>3</b>用户确认影响、验证和回退</li>
+              <li data-reveal-item><b>4</b>分阶段执行，每一步都检查</li>
+            </ol>
+          </div>
+          <div class="reveal-conclusion" data-reveal-conclusion>
+            <strong>AI 可以操作，授权仍然属于用户</strong><span>先调查，后确认，再执行，最后验证。</span>
+          </div>
+        </div>
+        <button class="action-button" type="button" data-reveal-next="ai-flow">开始受控流程</button>
+        <aside class="speaker-note">
+          建议用时 5 分钟。这一页是后半段的安全总纲。让学员复述四步，而不是背具体命令。
+          [Sources] 本页为课程协作流程设计。
+        </aside>
+      </section>
+
+      <!-- ß -->
+
+      <section class="slide closing" data-title="公开服务是一条完整链路">
+        <p class="eyebrow">18 · 回到开场</p>
+        <h2>总结：从本地代码到可用的服务，中间经历了什么</h2>
+        <div class="closing-equation">
+          <span>服务器<br /><small>持续运行</small></span>
+          <b>＋</b>
+          <span>公网地址<br /><small>能够找到</small></span>
+          <b>＋</b>
+          <span>SSH 密钥<br /><small>安全管理</small></span>
+          <b>＋</b>
+          <span>部署方案<br /><small>稳定运行</small></span>
+          <b>＝</b>
+          <strong>公开服务</strong>
+        </div>
+        <div class="closing-task">
+          <small>课堂复述</small>
+          <p>为什么家庭电脑能访问网站，却通常不能被公网主动连接？</p>
+        </div>
+        <p class="closing-line">不交密码，不让 AI 猜方案：先调查，后确认，再执行，最后验证。</p>
+        <aside class="speaker-note">
+          建议用时 3 分钟。让学员用自己的话回答页面问题，再请另一位学员说出 AI 部署的四步安全流程。不要用“谢谢”结束，停在一个可迁移的行动原则上。
+          [Sources] 本页为课程总结。
+        </aside>
+      </section>
+
+      <!-- <section class="slide appendix prompt-appendix" data-title="SSH 密钥登录提示词">
+        <p class="eyebrow">附录 A · SSH</p>
+        <h2>让 AI 引导配置 SSH，<br />先守住<em>四条边界</em></h2>
+        <ol class="appendix-rules"><li>每次只做一步</li><li>不粘贴密码与私钥</li><li>不覆盖已有密钥</li><li>新终端验证后再收口</li></ol>
+        <div class="appendix-actions">
+          <button class="action-button" type="button" data-copy-prompt="ssh">复制完整提示词</button>
+          <a href="prompts/01-SSH免密登录引导.txt" target="_blank">打开 TXT 文件</a>
+        </div>
+        <p class="appendix-tip">完整文本保存在 prompts/01-SSH免密登录引导.txt</p>
+        <aside class="speaker-note">
+          本页不计入正文时间。学员需要实操时再打开或复制。
+          [Sources] 提示词基于 OpenSSH 公钥认证与课程安全边界。
+        </aside>
+      </section>
+
+      <section class="slide appendix prompt-appendix" data-title="项目与部署分析提示词">
+        <p class="eyebrow">附录 B · ANALYZE</p>
+        <h2>先让 AI 检查项目，<br />再回答<em>应该怎么部署</em></h2>
+        <ol class="appendix-rules"><li>只读项目与服务器</li><li>不读取敏感值</li><li>比较多个方案</li><li>输出后停止等待确认</li></ol>
+        <div class="appendix-actions">
+          <button class="action-button" type="button" data-copy-prompt="analysis">复制完整提示词</button>
+          <a href="prompts/02-项目与容器部署分析.txt" target="_blank">打开 TXT 文件</a>
+        </div>
+        <p class="appendix-tip">完整文本保存在 prompts/02-项目与容器部署分析.txt</p>
+        <aside class="speaker-note">
+          本页不计入正文时间。强调这份提示词不授权安装、修改或部署。
+          [Sources] 提示词中的技术角色参考 Docker、Nginx、Tomcat 与 Spring Boot 官方文档。
+        </aside>
+      </section>
+
+      <section class="slide appendix prompt-appendix" data-title="确认后的部署执行提示词">
+        <p class="eyebrow">附录 C · DEPLOY</p>
+        <h2>执行之前，<br />必须已经有<em>确认过的方案</em></h2>
+        <ol class="appendix-rules"><li>复述确认方案</li><li>一步一确认</li><li>修改前备份</li><li>验证、报告与回退</li></ol>
+        <div class="appendix-actions">
+          <button class="action-button" type="button" data-copy-prompt="deploy">复制完整提示词</button>
+          <a href="prompts/03-确认后的部署执行.txt" target="_blank">打开 TXT 文件</a>
+        </div>
+        <p class="appendix-tip">完整文本保存在 prompts/03-确认后的部署执行.txt</p>
+        <aside class="speaker-note">
+          本页不计入正文时间。如果上下文中没有完整分析报告，执行提示词要求 AI 停止，不自行补全方案。
+          [Sources] 本页为课程提示词设计。
+        </aside>
+      </section> -->
+
+      <!-- <section class="slide appendix sources-slide" data-title="官方资料入口">
+        <p class="eyebrow">附录 D · SOURCES</p>
+        <h2>继续动手时，<br />从<em>官方文档</em>开始</h2>
+        <div class="source-columns">
+          <div>
+            <h3>网络与系统</h3>
+            <a href="https://www.rfc-editor.org/info/rfc1918/" target="_blank" rel="noreferrer"><b>RFC 1918</b><span>IPv4 私网地址</span></a>
+            <a href="https://www.rfc-editor.org/info/rfc6598/" target="_blank" rel="noreferrer"><b>RFC 6598</b><span>CGN 共享地址空间</span></a>
+            <a href="https://www.rfc-editor.org/info/rfc8200/" target="_blank" rel="noreferrer"><b>RFC 8200</b><span>IPv6 规范</span></a>
+            <a href="https://man.openbsd.org/ssh-keygen.1" target="_blank" rel="noreferrer"><b>OpenSSH</b><span>密钥生成与管理</span></a>
+          </div>
+          <div>
+            <h3>部署与容器</h3>
+            <a href="https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-docker-compose/" target="_blank" rel="noreferrer"><b>Docker Compose</b><span>多容器应用</span></a>
+            <a href="https://nginx.org/en/docs/beginners_guide.html" target="_blank" rel="noreferrer"><b>Nginx</b><span>静态内容与代理</span></a>
+            <a href="https://tomcat.apache.org/tomcat-11.0-doc/" target="_blank" rel="noreferrer"><b>Apache Tomcat</b><span>Servlet/JSP 容器</span></a>
+            <a href="https://docs.spring.io/spring-boot/reference/using/running-your-application.html" target="_blank" rel="noreferrer"><b>Spring Boot</b><span>可执行 JAR 与内置服务器</span></a>
+          </div>
+        </div>
+        <p class="appendix-tip">按 A 可随时跳到附录 · 完整列表见 assets/SOURCES.md</p>
+        <aside class="speaker-note">
+          本页不计入正文时间。博客可以辅助理解，真实字段、版本、命令和安全设置以官方文档为准。
+          [Sources] 本页链接均为 RFC 或对应项目官方文档。
+        </aside>
+      </section> -->
+
+      <div class="deck-progress" aria-hidden="true"><span id="progressBar"></span></div>
+      <div class="deck-chrome">
+        <button id="prevSlide" type="button" aria-label="上一页">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+        </button>
+        <button id="openOverview" type="button">目录</button>
+        <span id="slideCounter">1 / 28</span>
+        <button id="replayAnimation" type="button">重播</button>
+        <button id="toggleNotes" type="button">备注</button>
+        <button id="toggleFullscreen" type="button">全屏</button>
+        <button id="nextSlide" type="button" aria-label="下一页">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg>
+        </button>
+      </div>
+    </main>
+
+    <dialog id="overviewDialog" class="overview-dialog">
+      <div class="overview-card">
+        <header>
+          <div><small>OVERVIEW</small><h2>页面目录</h2></div>
+          <button id="closeOverview" type="button">关闭</button>
+        </header>
+        <div id="overviewGrid" class="overview-grid"></div>
+      </div>
+    </dialog>
+
+    <aside id="notesPanel" class="notes-panel" aria-hidden="true">
+      <header>
+        <div><small>SPEAKER NOTES</small><b>讲师口述建议</b></div>
+        <button id="closeNotes" type="button">关闭</button>
+      </header>
+      <p id="notesContent"></p>
+    </aside>
+
+    <div id="copyToast" class="copy-toast" role="status" aria-live="polite">已复制提示词</div>
+    <script src="app.js?v=1"></script>
+  </body>
+</html>

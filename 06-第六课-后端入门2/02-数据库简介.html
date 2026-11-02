@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>介绍当前主流数据库</title>
+
+<!-- === 字体：Archivo(拉丁展示) + Noto Sans SC(中文) + JetBrains Mono(代码) === -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800;900&family=Noto+Sans+SC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap">
+
+<style>
+/* ===========================================
+   主题变量 — 简洁商务亮色系（Swiss Modern 变体）
+   与 backend-slides.html 保持同一设计系统
+   =========================================== */
+:root {
+    --stage-bg: #e8e8e6;
+    --slide-bg: #ffffff;
+    --ink: #16161a;
+    --ink-2: #4b4b52;
+    --ink-3: #8a8a92;
+    --accent: #ff3300;
+    --accent-soft: #fff0ec;
+    --panel: #f6f6f4;
+    --panel-2: #efefec;
+    --line: #e2e2de;
+
+    --font-display: 'Archivo', 'Noto Sans SC', sans-serif;
+    --font-body: 'Noto Sans SC', 'Archivo', sans-serif;
+    --font-mono: 'JetBrains Mono', 'Noto Sans SC', monospace;
+
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --duration-normal: 0.55s;
+}
+
+/* ===========================================
+   基础重置
+   =========================================== */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* ===========================================
+   FIXED 16:9 STAGE — viewport-base.css 全量引入
+   =========================================== */
+html, body {
+    width: 100%; height: 100%;
+    margin: 0; overflow: hidden;
+    background: var(--stage-bg, #000);
+}
+.deck-viewport {
+    position: fixed; inset: 0; overflow: hidden;
+    background: var(--stage-bg, #000);
+}
+.deck-stage {
+    position: absolute; left: 0; top: 0;
+    width: 1920px; height: 1080px;
+    overflow: hidden; transform-origin: 0 0;
+    background: var(--slide-bg, #fff);
+}
+.slide {
+    position: absolute; inset: 0;
+    width: 1920px; height: 1080px;
+    overflow: hidden; display: block;
+    visibility: hidden; opacity: 0; pointer-events: none;
+    background: var(--slide-bg, #fff);
+}
+.slide.active, .slide.visible {
+    visibility: visible; opacity: 1; pointer-events: auto; z-index: 1;
+}
+img, video, canvas, svg { max-width: 100%; max-height: 100%; }
+.deck-controls {
+    position: fixed; left: 50%; bottom: 22px;
+    transform: translateX(-50%); z-index: 1000;
+}
+@media print {
+    html, body { width: 1920px; height: auto; overflow: visible; background: #fff; }
+    .deck-viewport { position: static; overflow: visible; background: #fff; }
+    .deck-stage { position: static; width: auto; height: auto; transform: none !important; background: none; }
+    .slide {
+        position: relative; display: block !important; visibility: visible !important;
+        opacity: 1 !important; pointer-events: auto !important;
+        width: 1920px; height: 1080px;
+        break-after: page; page-break-after: always;
+    }
+    .slide:last-child { break-after: auto; page-break-after: auto; }
+    .deck-controls { display: none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.2s !important;
+    }
+}
+
+/* ===========================================
+   动画：商务风 — 快速、克制的上浮显现
+   =========================================== */
+.reveal {
+    opacity: 0; transform: translateY(26px);
+    transition: opacity var(--duration-normal) var(--ease-out-expo),
+                transform var(--duration-normal) var(--ease-out-expo);
+}
+.slide.visible .reveal { opacity: 1; transform: translateY(0); }
+.reveal.d1 { transition-delay: 0.06s; }
+.reveal.d2 { transition-delay: 0.14s; }
+.reveal.d3 { transition-delay: 0.22s; }
+.reveal.d4 { transition-delay: 0.30s; }
+.reveal.d5 { transition-delay: 0.38s; }
+
+/* ===========================================
+   通用组件语法（与 backend-slides.html 一致）
+   =========================================== */
+.slide {
+    font-family: var(--font-body); color: var(--ink);
+    display: flex; flex-direction: column;
+}
+
+/* --- 页眉 --- */
+.slide-head {
+    display: flex; align-items: flex-start; gap: 36px;
+    padding: 56px 80px 0 80px;
+}
+.slide-num {
+    font-family: var(--font-display); font-weight: 900;
+    font-size: 88px; line-height: 0.9; color: var(--accent);
+    letter-spacing: -2px; min-width: 150px;
+}
+.slide-num small {
+    display: block; font-size: 15px; font-weight: 700;
+    letter-spacing: 3px; color: var(--ink-3); margin-top: 10px;
+}
+.head-main { flex: 1; }
+.kicker {
+    font-family: var(--font-mono); font-size: 15px; font-weight: 600;
+    letter-spacing: 2px; color: var(--accent);
+    text-transform: uppercase; margin-bottom: 12px;
+}
+.slide-head h2 {
+    font-family: var(--font-display); font-weight: 900;
+    font-size: 52px; line-height: 1.15; letter-spacing: -1px;
+}
+.crumb {
+    font-family: var(--font-mono); font-size: 13px;
+    color: var(--ink-3); letter-spacing: 1px;
+    padding-top: 10px; white-space: nowrap;
+}
+.head-rule {
+    height: 3px; background: var(--ink); margin: 28px 80px 0 80px;
+    position: relative;
+}
+.head-rule::before {
+    content: ''; position: absolute; left: 0; top: 0;
+    width: 150px; height: 3px; background: var(--accent);
+}
+
+/* --- 正文栅格：撑满页眉与底卡之间 --- */
+.body {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 30px; padding: 26px 80px 0 80px;
+    flex: 1; align-content: stretch; min-height: 0;
+}
+.body > * { min-height: 0; }
+.body.single { grid-template-columns: 1fr; }
+.body.wide-left { grid-template-columns: 1.25fr 1fr; }
+.body.grid4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.slide-head, .head-rule, .foot-card, .src { flex-shrink: 0; }
+
+/* --- 内容块 --- */
+.block {
+    background: var(--panel); border-radius: 4px;
+    padding: 24px 30px; position: relative;
+    display: flex; flex-direction: column; justify-content: center;
+}
+.block.tint { background: var(--accent-soft); }
+.block.white { background: #fff; border: 1px solid var(--line); }
+.block-label {
+    font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+    letter-spacing: 2px; color: var(--accent);
+    text-transform: uppercase; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 10px;
+}
+.block-label::before {
+    content: ''; width: 18px; height: 3px; background: var(--accent);
+}
+.block p { font-size: 23px; line-height: 1.6; color: var(--ink-2); }
+.block p + p { margin-top: 10px; }
+.block p strong, .block li strong { color: var(--ink); font-weight: 700; }
+
+/* --- 要点列表 --- */
+.points { list-style: none; }
+.points li {
+    font-size: 22px; line-height: 1.55; color: var(--ink-2);
+    padding: 8px 0 8px 26px; position: relative;
+}
+.points li::before {
+    content: ''; position: absolute; left: 0; top: 20px;
+    width: 12px; height: 3px; background: var(--accent);
+}
+.points li strong { color: var(--ink); }
+
+/* --- 术语条 --- */
+.terms { display: flex; flex-direction: column; gap: 12px; }
+.term {
+    display: flex; gap: 14px; align-items: baseline;
+    font-size: 22px; line-height: 1.5;
+}
+.term b {
+    font-family: var(--font-display); font-weight: 800;
+    color: var(--accent); white-space: nowrap; font-size: 22px;
+}
+.term span { color: var(--ink-2); }
+
+/* --- 步骤流 --- */
+.steps { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.step {
+    background: #fff; border: 2px solid var(--ink);
+    padding: 12px 20px; font-size: 21px; font-weight: 700;
+    border-radius: 999px; white-space: nowrap;
+}
+.step.hot { background: var(--accent); border-color: var(--accent); color: #fff; }
+.step-arrow { color: var(--accent); font-weight: 900; font-size: 22px; }
+
+/* --- 表格 --- */
+table.grid { width: 100%; border-collapse: collapse; font-size: 21px; }
+table.grid th {
+    font-family: var(--font-display); font-weight: 800; font-size: 18px;
+    letter-spacing: 1px; text-align: left; color: #fff;
+    background: var(--ink); padding: 11px 16px;
+}
+table.grid td {
+    padding: 11px 16px; border-bottom: 1px solid var(--line);
+    color: var(--ink-2); line-height: 1.5; vertical-align: top;
+}
+table.grid tr:nth-child(even) td { background: var(--panel); }
+table.grid td b { color: var(--ink); }
+
+/* --- 产品卡片（第 2、3 页用） --- */
+.prod-card {
+    background: #fff; border: 1px solid var(--line); border-radius: 4px;
+    padding: 26px 30px; position: relative; overflow: hidden;
+    display: flex; flex-direction: column; justify-content: center;
+}
+.prod-card::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 6px; background: var(--ink);
+}
+.prod-card.hot::before { background: var(--accent); }
+.prod-name {
+    font-family: var(--font-display); font-weight: 900;
+    font-size: 30px; letter-spacing: -0.5px; margin-bottom: 4px;
+}
+.prod-tag {
+    font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+    letter-spacing: 2px; color: var(--accent); margin-bottom: 14px;
+}
+.prod-card p { font-size: 20px; line-height: 1.55; color: var(--ink-2); }
+.prod-card p + p { margin-top: 6px; }
+.prod-card p b { color: var(--ink); }
+
+/* --- 页底深色结论卡（与上一份 PPT 的提示词卡片同一视觉语言） --- */
+.foot-card {
+    margin: 22px 80px 46px 80px;
+    background: var(--ink); color: #f5f5f3;
+    border-radius: 4px; padding: 22px 30px;
+    position: relative; overflow: hidden;
+}
+.foot-card::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 6px; background: var(--accent);
+}
+.foot-label {
+    font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+    letter-spacing: 3px; color: var(--accent); display: block; margin-bottom: 8px;
+}
+.foot-card p {
+    font-size: 21px; line-height: 1.6; color: #e8e8e4;
+}
+.foot-card p b { color: #fff; }
+
+/* --- 代码/路径 --- */
+code, .mono {
+    font-family: var(--font-mono); font-size: 0.88em;
+    background: var(--panel-2); padding: 2px 7px; border-radius: 3px;
+    color: var(--ink); font-weight: 600;
+}
+
+/* --- 便签/引用 --- */
+.note {
+    border-left: 4px solid var(--accent);
+    padding: 6px 0 6px 20px; font-size: 22px; line-height: 1.55;
+    color: var(--ink-2);
+}
+.note b { color: var(--ink); }
+
+/* --- 封面 --- */
+.title-slide { display: flex; flex-direction: column; justify-content: center; padding: 0 110px; }
+.title-slide .top-line {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--font-mono); font-size: 16px; letter-spacing: 2px;
+    color: var(--ink-3); margin-bottom: 60px;
+}
+.title-slide .top-line b { color: var(--accent); }
+.title-slide h1 {
+    font-family: var(--font-display); font-weight: 900;
+    font-size: 108px; line-height: 1.08; letter-spacing: -3px;
+}
+.title-slide h1 em { font-style: normal; color: var(--accent); }
+.title-slide .sub {
+    margin-top: 36px; font-size: 30px; color: var(--ink-2); font-weight: 500;
+    max-width: 1300px; line-height: 1.5;
+}
+.title-slide .meta {
+    margin-top: 70px; display: flex; gap: 44px;
+    font-family: var(--font-mono); font-size: 16px; color: var(--ink-3);
+}
+.title-slide .meta span { border-top: 3px solid var(--accent); padding-top: 12px; }
+.title-deco {
+    position: absolute; right: -140px; top: -140px;
+    width: 480px; height: 480px; border: 3px solid var(--line);
+    border-radius: 50%; pointer-events: none;
+}
+.title-deco::after {
+    content: ''; position: absolute; right: 90px; bottom: -30px;
+    width: 60px; height: 60px; background: var(--accent); border-radius: 50%;
+}
+
+/* --- 来源脚注 --- */
+.src {
+    margin: 0 80px 40px 80px;
+    font-family: var(--font-mono); font-size: 13px; color: var(--ink-3);
+    line-height: 1.7;
+}
+
+/* --- 页码 --- */
+.pageno {
+    position: absolute; right: 80px; bottom: 40px;
+    font-family: var(--font-mono); font-size: 14px; color: var(--ink-3);
+    letter-spacing: 1px;
+}
+.pageno b { color: var(--accent); }
+
+/* ===========================================
+   精选动画组件（仅个别页面）
+   =========================================== */
+@keyframes wipeUp {
+    from { clip-path: inset(100% 0 0 0); transform: translateY(40px); opacity: 0; }
+    to   { clip-path: inset(0 0 0 0);    transform: none;         opacity: 1; }
+}
+.fx-wipe { opacity: 0; }
+.slide.visible .fx-wipe { animation: wipeUp 0.9s var(--ease-out-expo) 0.15s forwards; }
+@keyframes orbit { to { transform: rotate(360deg); } }
+.title-slide .title-deco { animation: orbit 40s linear infinite; }
+@keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.35); opacity: 0.7; } }
+.title-deco::after { animation: pulse 3s ease-in-out infinite; }
+
+/* 步骤流弹簧逐项弹出（仅 .fx-pop 页面） */
+@keyframes popIn { to { opacity: 1; transform: scale(1); } }
+.fx-pop > * { opacity: 0; transform: scale(0.5); }
+.slide.visible .fx-pop > * { animation: popIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+.slide.visible .fx-pop > *:nth-child(1)  { animation-delay: 0.10s; }
+.slide.visible .fx-pop > *:nth-child(2)  { animation-delay: 0.16s; }
+.slide.visible .fx-pop > *:nth-child(3)  { animation-delay: 0.22s; }
+.slide.visible .fx-pop > *:nth-child(4)  { animation-delay: 0.28s; }
+.slide.visible .fx-pop > *:nth-child(5)  { animation-delay: 0.34s; }
+.slide.visible .fx-pop > *:nth-child(6)  { animation-delay: 0.40s; }
+.slide.visible .fx-pop > *:nth-child(7)  { animation-delay: 0.46s; }
+.slide.visible .fx-pop > *:nth-child(8)  { animation-delay: 0.52s; }
+.slide.visible .fx-pop > *:nth-child(9)  { animation-delay: 0.58s; }
+.slide.visible .fx-pop > *:nth-child(10) { animation-delay: 0.64s; }
+.slide.visible .fx-pop > *:nth-child(11) { animation-delay: 0.70s; }
+
+@media print {
+    .fx-wipe, .fx-pop > * {
+        opacity: 1 !important; transform: none !important;
+        clip-path: none !important; animation: none !important;
+    }
+}
+
+/* ===========================================
+   放映控件（舞台外）
+   =========================================== */
+.progress-bar {
+    position: fixed; left: 0; top: 0; height: 4px;
+    background: var(--accent); z-index: 1001;
+    transition: width 0.3s var(--ease-out-expo); width: 0;
+}
+.deck-hud {
+    position: fixed; right: 24px; bottom: 18px; z-index: 1001;
+    font-family: var(--font-mono); font-size: 13px;
+    color: #8a8a92; background: rgba(255,255,255,0.85);
+    padding: 6px 14px; border-radius: 999px; letter-spacing: 1px;
+}
+
+/* ===========================================
+   内联编辑（E 键 / 左上角热区）
+   =========================================== */
+.edit-hotzone {
+    position: fixed; top: 0; left: 0; width: 80px; height: 80px;
+    z-index: 10000; cursor: pointer;
+}
+.edit-toggle {
+    position: fixed; top: 16px; left: 16px; z-index: 10001;
+    width: 44px; height: 44px; border-radius: 50%;
+    border: none; background: var(--ink); color: #fff;
+    font-size: 18px; cursor: pointer;
+    opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+}
+.edit-toggle.show, .edit-toggle.active { opacity: 1; pointer-events: auto; }
+.edit-toggle.active { background: var(--accent); }
+body.editing .slide.visible [contenteditable] { outline: 2px dashed var(--accent); outline-offset: 2px; }
+.edit-banner {
+    position: fixed; top: 16px; left: 72px; z-index: 10001;
+    font-family: var(--font-mono); font-size: 13px; color: #fff;
+    background: var(--accent); padding: 8px 16px; border-radius: 999px;
+    display: none;
+}
+body.editing .edit-banner { display: block; }
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar"></div>
+<div class="deck-hud" id="deckHud">1 / 6</div>
+<div class="edit-hotzone"></div>
+<button class="edit-toggle" id="editToggle" title="编辑模式 (E)">✎</button>
+<div class="edit-banner">编辑模式：点击文字直接修改，Ctrl+S 导出 HTML</div>
+
+<div class="deck-viewport">
+<main class="deck-stage" id="deckStage">
+
+<!-- ================= 封面 ================= -->
+<section class="slide title-slide active">
+    <div class="title-deco"></div>
+    <div class="top-line reveal">
+        <span>AI 夜校 · <b>数据库科普</b></span>
+        <span>8–10 分钟分享</span>
+    </div>
+    <h1 class="fx-wipe">介绍当下主流数据库</h1>
+    <p class="sub reveal d2">数据库分为；关系型与非关系型，各自擅长什么？在一个电商系统里怎样分工配合。</p>
+    <div class="meta reveal d3">
+        <span>5 页正文</span>
+        <span>MySQL · PostgreSQL · NoSQL</span>
+        <span>电商案例贯穿</span>
+    </div>
+</section>
+
+<!-- ================= 第 1 页：两大类别 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">01</div>
+        <div class="head-main">
+            <div class="kicker">分类</div>
+            <h2>数据库的两大类别</h2>
+        </div>
+        <div class="crumb">主流数据库 · 分类用途场景</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="block reveal d1">
+            <div class="block-label">对比</div>
+            <table class="grid">
+                <tr><th></th><th>关系型</th><th>非关系型 NoSQL</th></tr>
+                <tr><td><b>组织方式</b></td><td>表、行、列，键关联</td><td>文档、键值、宽列、图</td></tr>
+                <tr><td><b>擅长</b></td><td>业务关联、事务、约束</td><td>灵活结构、特定访问模式</td></tr>
+                <tr><td><b>代表</b></td><td>MySQL、PostgreSQL</td><td>MongoDB、Redis、Cassandra、Neo4j</td></tr>
+                <tr><td><b>举例</b></td><td>订单、库存、财务</td><td>商品属性、缓存、事件、关系网</td></tr>
+            </table>
+        </div>
+        <div class="block tint reveal d2">
+            <div class="block-label">通俗解释</div>
+            <ul class="points">
+                <li>关系型像一组<strong>相互关联的登记表</strong>：用户表记"谁"，订单表记"买了什么"，商品表记"卖什么"。</li>
+                <li>非关系型各有不同组织方式：文档像<strong>商品档案</strong>，键值像<strong>编号取物</strong>，图像<strong>人物关系网</strong>。</li>
+            </ul>
+        </div>
+    </div>
+    <div class="foot-card reveal d3">
+        <span class="foot-label">讲解要点</span>
+        <p>按<b>数据模型</b>分类，不等同于"慢与快"或"老与新"；NoSQL 并非不能支持事务，支持范围看具体产品；产品能力会重叠——关系型也能处理 JSON，部分产品也支持向量检索。</p>
+    </div>
+    <div class="pageno"><b>01</b> / 05</div>
+</section>
+
+<!-- ================= 第 2 页：关系型 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">02</div>
+        <div class="head-main">
+            <div class="kicker">关系型数据库</div>
+            <h2>记录核心业务，保证数据正确</h2>
+        </div>
+        <div class="crumb">主流数据库 · 分类用途场景</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="prod-card hot reveal d1">
+            <div class="prod-name">MySQL</div>
+            <div class="prod-tag">常见的业务"账本"</div>
+            <p><b>存什么：</b>用户资料、商品价格、订单明细、库存数量、支付状态。</p>
+            <p><b>做什么：</b>注册新增用户、浏览查商品、下单写订单、取消订单恢复库存。</p>
+            <p><b>例子：</b>买两件商品时，创建订单和扣减库存应<strong>协调完成</strong>，避免"订单创建了，库存却没扣"。</p>
+        </div>
+        <div class="prod-card reveal d2">
+            <div class="prod-name">PostgreSQL</div>
+            <div class="prod-tag">"账本" + 丰富的查询工具</div>
+            <p><b>存什么：</b>相似业务数据，也支持 JSON；地理空间可用 PostGIS 扩展。</p>
+            <p><b>做什么：</b>多表关联、复杂统计、结构化与 JSON 混合查询、地理查询。</p>
+            <p><b>例子：</b>统计各城市销量、分析用户复购、查询距顾客 <strong>3 公里内</strong>的门店。</p>
+        </div>
+    </div>
+    <div class="foot-card reveal d3">
+        <span class="foot-label">讲解要点</span>
+        <p>两者用途大量重叠：MySQL 也能做复杂查询，PostgreSQL 也能承担普通网站业务。最终选择还取决于<b>团队经验、工具生态和维护成本</b>；事务不自动覆盖外部支付平台，支付与订单仍需业务流程协调。</p>
+    </div>
+    <div class="pageno"><b>02</b> / 05</div>
+</section>
+
+<!-- ================= 第 3 页：非关系型 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">03</div>
+        <div class="head-main">
+            <div class="kicker">非关系型数据库</div>
+            <h2>NoSQL：按数据特点分工</h2>
+        </div>
+        <div class="crumb">主流数据库 · 分类用途场景</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body grid4">
+        <div class="prod-card hot reveal d1">
+            <div class="prod-name">MongoDB</div>
+            <div class="prod-tag">文档型 · 结构各异的档案</div>
+            <p><b>存：</b>类 JSON 文档（实际为 BSON），含嵌套属性与标签。</p>
+            <p><b>做：</b>按字段查询更新、聚合统计，适应字段调整。</p>
+            <p><b>例：</b>服装存尺码面料，手机存芯片电池，不必共用同一组字段。</p>
+        </div>
+        <div class="prod-card reveal d2">
+            <div class="prod-name">Redis</div>
+            <div class="prod-tag">键值型 · 热点数据快速取出</div>
+            <p><b>存：</b>键值与字符串、哈希、列表、集合、有序集合。</p>
+            <p><b>做：</b>缓存热门查询、登录会话、计数、热销排行榜。</p>
+            <p><b>例：</b>热门商品介绍缓存进 Redis，减少主库重复查询。</p>
+        </div>
+        <div class="prod-card reveal d3">
+            <div class="prod-name">Cassandra</div>
+            <div class="prod-tag">宽列型 · 持续产生的海量记录</div>
+            <p><b>存：</b>按分区组织的大规模记录，如设备与行为事件。</p>
+            <p><b>做：</b>分散到多台机器，承接大规模写入，按预设分区键查询。</p>
+            <p><b>例：</b>按"某设备、某时间段"读取持续上报的运行状态。</p>
+        </div>
+        <div class="prod-card reveal d4">
+            <div class="prod-name">Neo4j</div>
+            <div class="prod-tag">图数据库 · 谁和谁有关</div>
+            <p><b>存：</b>节点、关系和属性，如用户节点与"使用过"关系。</p>
+            <p><b>做：</b>查询多层关联、关系路径和共同关联对象。</p>
+            <p><b>例：</b>多账号共享设备或手机号，沿关系网发现刷单团伙。</p>
+        </div>
+    </div>
+    <div class="foot-card reveal d5">
+        <span class="foot-label">讲解要点</span>
+        <p>NoSQL 是<b>多种数据库的集合</b>，各自解决不同问题：灵活结构仍需数据设计与校验；缓存要考虑更新与失效；宽列建表围绕查询方式设计；图数据库的优势在关系分析，简单订单记录不必改用它。</p>
+    </div>
+    <div class="pageno"><b>03</b> / 05</div>
+</section>
+
+<!-- ================= 第 4 页：多库配合 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">04</div>
+        <div class="head-main">
+            <div class="kicker">协同</div>
+            <h2>一个系统如何让多种数据库配合工作</h2>
+        </div>
+        <div class="crumb">主流数据库 · 分类用途场景</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body single">
+        <div class="block reveal d1">
+            <div class="block-label">以电商平台为例：每类数据有明确职责和权威来源</div>
+            <table class="grid">
+                <tr><th style="width:400px">系统任务</th><th style="width:320px">可使用的数据库</th><th>分工与价值</th></tr>
+                <tr><td><b>下单、管理库存、记录支付结果</b></td><td>MySQL / PostgreSQL</td><td>核心业务主库，保存订单、价格、可售库存，用事务协调更新</td></tr>
+                <tr><td><b>展示不同品类的商品参数</b></td><td>MongoDB（按需）</td><td>保存灵活的商品属性，通过商品 ID 与主库关联</td></tr>
+                <tr><td><b>快速展示热点商品、维护会话</b></td><td>Redis</td><td>缓存热门数据、会话和排行，失效时回源读取</td></tr>
+                <tr><td><b>搜索"红色运动鞋"</b></td><td>Elasticsearch（按需）</td><td>建立搜索索引，提供全文搜索、筛选与相关性排序</td></tr>
+                <tr><td><b>AI 问答、按含义查找商品</b></td><td>Milvus 等向量库（按需）</td><td>保存向量及关联 ID，查找语义相近内容，为 AI 提供检索材料</td></tr>
+            </table>
+        </div>
+    </div>
+    <div class="foot-card reveal d2">
+        <span class="foot-label">页内流程</span>
+        <p>浏览 → 查缓存/商品资料；搜索 → 查搜索索引；下单 → 写业务主库；数据更新 → <b>同步缓存和索引</b>。数据库的选择由后端完成，用户只看到一个商城。</p>
+    </div>
+    <div class="pageno"><b>04</b> / 05</div>
+</section>
+
+<!-- ================= 第 5 页：数据流动与选型 ================= -->
+<section class="slide">
+    <div class="slide-head">
+        <div class="slide-num">05</div>
+        <div class="head-main">
+            <div class="kicker">落地</div>
+            <h2>数据如何流动，以及如何渐进式选型</h2>
+        </div>
+        <div class="crumb">主流数据库 · 分类用途场景</div>
+    </div>
+    <div class="head-rule"></div>
+    <div class="body">
+        <div class="block reveal d1">
+            <div class="block-label">一次改价后的数据流动</div>
+            <div class="steps fx-pop">
+                <span class="step">先更新权威主库</span><span class="step-arrow">→</span>
+                <span class="step">再更新缓存和索引</span><span class="step-arrow">→</span>
+                <span class="step hot">失败则重试+定期核对</span>
+            </div>
+            <p style="margin-top:16px">主库事务通常不覆盖缓存、搜索和向量库，副本可能<strong>短暂滞后</strong>；浏览和搜索可容忍延迟，<strong>下单必须重新校验权威记录</strong>。</p>
+            <div class="block-label" style="margin-top:16px">同步手段</div>
+            <p>消息队列、变更事件或定时任务，避免每次请求同时写入所有数据库。</p>
+        </div>
+        <div class="block tint reveal d2">
+            <div class="block-label">不是每个系统都需要全部数据库</div>
+            <ul class="points">
+                <li><strong>小型商城</strong>：一套 MySQL 或 PostgreSQL 就够了</li>
+                <li><strong>访问量上升</strong>：重复读取成瓶颈，再加 Redis 缓存</li>
+                <li><strong>搜索要求提升</strong>：需要全文检索时引入搜索引擎</li>
+                <li><strong>属性或 AI 需求出现</strong>：再评估文档存储和向量检索</li>
+            </ul>
+            <p style="margin-top:12px" class="note">每加一种数据库，都带来部署、监控、备份、权限和<b>同步成本</b>。</p>
+        </div>
+    </div>
+    <div class="foot-card reveal d3">
+        <span class="foot-label">页尾结论</span>
+        <p><b>从主库开始，遇到明确需求再增加专用数据库，同时管理好数据同步。</b></p>
+    </div>
+    <div class="src reveal d4">参考：mongodb.com/resources/basics/databases/types · dev.mysql.com · postgresql.org/about · redis.io/docs · cassandra.apache.org · neo4j.com · elastic.co/docs · milvus.io/docs</div>
+    <div class="pageno"><b>05</b> / 05</div>
+</section>
+
+</main>
+</div>
+
+<script>
+/* ===========================================
+   放映控制器：缩放舞台 + 键盘/触摸/滚轮导航 + 进度条 + #页码深链接
+   =========================================== */
+class SlidePresentation {
+    constructor() {
+        this.slides = document.querySelectorAll('.slide');
+        this.currentSlide = 0;
+        this.stage = document.getElementById('deckStage');
+        this.hud = document.getElementById('deckHud');
+        this.progress = document.getElementById('progressBar');
+        this.wheelLock = false;
+        this.setupStageScale();
+        this.setupKeyboardNav();
+        this.setupTouchNav();
+        this.setupWheelNav();
+        const fromHash = parseInt((location.hash || '').replace('#', ''), 10);
+        this.showSlide(Number.isFinite(fromHash) ? fromHash - 1 : 0);
+        window.addEventListener('hashchange', () => {
+            const n = parseInt((location.hash || '').replace('#', ''), 10);
+            if (Number.isFinite(n) && n - 1 !== this.currentSlide) this.showSlide(n - 1);
+        });
+    }
+
+    setupStageScale() {
+        const scale = () => {
+            const factor = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+            const x = (window.innerWidth - 1920 * factor) / 2;
+            const y = (window.innerHeight - 1080 * factor) / 2;
+            this.stage.style.transform = `translate(${x}px, ${y}px) scale(${factor})`;
+        };
+        scale();
+        window.addEventListener('resize', scale);
+    }
+
+    setupKeyboardNav() {
+        document.addEventListener('keydown', (e) => {
+            if (document.body.classList.contains('editing')) return;
+            if (['ArrowRight', 'ArrowDown', ' ', 'PageDown'].includes(e.key)) {
+                e.preventDefault(); this.next();
+            } else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) {
+                e.preventDefault(); this.prev();
+            } else if (e.key === 'Home') this.showSlide(0);
+            else if (e.key === 'End') this.showSlide(this.slides.length - 1);
+        });
+    }
+
+    setupTouchNav() {
+        let startX = 0, startY = 0;
+        document.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+        }, { passive: true });
+        document.addEventListener('touchend', (e) => {
+            const dx = e.changedTouches[0].clientX - startX;
+            const dy = e.changedTouches[0].clientY - startY;
+            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
+                dx < 0 ? this.next() : this.prev();
+            }
+        }, { passive: true });
+    }
+
+    setupWheelNav() {
+        document.addEventListener('wheel', (e) => {
+            if (this.wheelLock || document.body.classList.contains('editing')) return;
+            if (Math.abs(e.deltaY) < 24) return;
+            this.wheelLock = true;
+            e.deltaY > 0 ? this.next() : this.prev();
+            setTimeout(() => this.wheelLock = false, 700);
+        }, { passive: true });
+    }
+
+    next() { this.showSlide(this.currentSlide + 1); }
+    prev() { this.showSlide(this.currentSlide - 1); }
+
+    showSlide(index) {
+        this.currentSlide = Math.max(0, Math.min(index, this.slides.length - 1));
+        this.slides.forEach((slide, i) => {
+            slide.classList.toggle('active', i === this.currentSlide);
+            slide.classList.toggle('visible', i === this.currentSlide);
+        });
+        this.hud.textContent = `${this.currentSlide + 1} / ${this.slides.length}`;
+        this.progress.style.width = `${((this.currentSlide + 1) / this.slides.length) * 100}%`;
+        history.replaceState(null, '', `#${this.currentSlide + 1}`);
+    }
+}
+
+const deck = new SlidePresentation();
+
+/* ===========================================
+   内联编辑：E 键或左上角热区进入，Ctrl+S 导出
+   =========================================== */
+class InlineEditor {
+    constructor() { this.isActive = false; }
+    toggleEditMode() {
+        this.isActive = !this.isActive;
+        document.body.classList.toggle('editing', this.isActive);
+        document.getElementById('editToggle').classList.toggle('active', this.isActive);
+        const slide = document.querySelector('.slide.visible');
+        slide.querySelectorAll('h1, h2, p, li, td, th, span, .term').forEach(el => {
+            if (this.isActive) el.setAttribute('contenteditable', 'true');
+            else el.removeAttribute('contenteditable');
+        });
+    }
+    exportHTML() {
+        document.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+        const blob = new Blob(['<!DOCTYPE html>\n' + document.documentElement.outerHTML], { type: 'text/html' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'database-slides-edited.html';
+        a.click();
+    }
+}
+const editor = new InlineEditor();
+
+const hotzone = document.querySelector('.edit-hotzone');
+const editToggle = document.getElementById('editToggle');
+let hideTimeout = null;
+hotzone.addEventListener('mouseenter', () => { clearTimeout(hideTimeout); editToggle.classList.add('show'); });
+hotzone.addEventListener('mouseleave', () => {
+    hideTimeout = setTimeout(() => { if (!editor.isActive) editToggle.classList.remove('show'); }, 400);
+});
+editToggle.addEventListener('mouseenter', () => clearTimeout(hideTimeout));
+editToggle.addEventListener('mouseleave', () => {
+    hideTimeout = setTimeout(() => { if (!editor.isActive) editToggle.classList.remove('show'); }, 400);
+});
+hotzone.addEventListener('click', () => editor.toggleEditMode());
+editToggle.addEventListener('click', () => editor.toggleEditMode());
+document.addEventListener('keydown', (e) => {
+    if ((e.key === 'e' || e.key === 'E') && !e.target.getAttribute('contenteditable')) {
+        editor.toggleEditMode();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 's' && editor.isActive) {
+        e.preventDefault(); editor.exportHTML();
+    }
+});
+</script>
+</body>
+</html>

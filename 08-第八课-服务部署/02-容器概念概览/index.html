@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="AI 夜校第 8 课：取消网站演示模式，认识 Docker 与 Docker Compose，并完成安装准备。" />
+    <meta name="theme-color" content="#f2ecdf" />
+    <title>让网站真正跑起来｜第 8 课</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="styles.css?v=3" />
+  </head>
+  <body>
+    <div class="orientation-hint" aria-hidden="true">横屏观看，效果更完整</div>
+
+    <main id="deck" class="deck" aria-live="polite">
+      <section class="slide demo-slide" data-title="让网站从演示变成能用">
+        <p class="eyebrow" data-animate>01 · 第一步 / DEMO → LIVE</p>
+        <div class="title-row" data-animate>
+          <h2>解决上节课的问题：<br />让网站从“演示”变成<em>“能用”</em></h2>
+          <span class="step-stamp">先修正配置<br /><b>再验证流程</b></span>
+        </div>
+
+        <div class="demo-layout">
+          <div class="demo-story" data-animate>
+            <ul class="check-list">
+              <li><b>已经完成</b><span>网页前端和后端分别在两个进程运行。</span></li>
+              <li><b>仍有问题</b><span>网站处于“演示模式”，部分操作只是展示效果。</span></li>
+              <li class="found"><b>本次发现</b><span>后端目录下<code> backend/.env</code> 里的演示开关仍为 <code>true</code>，也就是“开启”；且配置文件不完整。</span></li>
+            </ul>
+
+            <div class="shop-demo" id="shopDemo">
+              <div class="shop-awning" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="shop-front">
+                <div class="shop-sign" id="shopSign">试营业展示</div>
+                <div class="shop-window" aria-hidden="true"><span></span><span></span></div>
+                <div class="shop-door" aria-hidden="true"></div>
+              </div>
+              <div class="env-card">
+                <small>当前配置 · 课堂示意</small>
+                <code><span>backend/.env</span><b id="demoValue">DEMO_MODE=true</b></code>
+                <button id="demoSwitch" class="mode-switch" type="button" role="switch" aria-checked="true" aria-label="切换演示模式示意">
+                  <i></i><span id="demoModeLabel">演示模式 ON</span>
+                </button>
+              </div>
+            </div>
+            <p class="micro-note">点击开关查看目标状态 · 仅作课堂示意，不修改项目文件</p>
+          </div>
+
+          <div class="prompt-card" data-animate>
+            <header><div><small>给 AI 的提示词</small><h3>把任务、边界和验收说清楚</h3></div><span>PROMPT</span></header>
+            <p id="demoPrompt">请取消这个网站的演示模式，让用户能够正常注册、登录、浏览产品和下单，并确保账号和订单能保存。请自行排查原因，重点检查 backend/.env 中的演示模式设置。需要修改 .env 时，先向我说明修改内容；缺少必要信息时再向我提问。修改后请实际验证完整流程。</p>
+            <div class="prompt-flow" aria-label="需要验证的完整流程">
+              <span>注册</span><i>→</i><span>登录</span><i>→</i><span>浏览商品</span><i>→</i><span>下单</span><i>→</i><span>数据保存</span>
+            </div>
+            <button class="action-button" id="copyDemoPrompt" type="button">复制完整提示词</button>
+          </div>
+        </div>
+
+        <blockquote data-animate>店已经装修好了，接下来要摘下“试营业展示”的牌子，让完整流程真正跑通。</blockquote>
+        <aside class="speaker-note">建议用时 5 分钟。先承接上次成果：网页和背后的服务已经一起运行，但演示模式让部分操作只呈现效果。指出本次排查位置 backend/.env，演示开关为 true。类比一家装修好的店仍挂着“试营业展示”的牌子。点击开关只做课堂示意，不代表项目已被修改。随后复制提示词，强调修改配置前先说明、缺少信息要追问、完成后必须实际验证注册、登录、浏览商品、下单以及数据保存。</aside>
+      </section>
+
+      <section class="slide box-slide" data-title="给网站准备一个搬家箱">
+        <p class="eyebrow" data-animate>02 · 第二步 / CONTAINERIZATION</p>
+        <h2 data-animate>容器化部署：给网站准备一个<em>“搬家箱”</em></h2>
+
+        <div class="box-layout">
+          <div class="box-copy">
+            <ol class="numbered-points" data-animate>
+              <li><b>01</b><p>现在运行网站，要<strong>分别启动几个部分</strong>。</p></li>
+              <li><b>02</b><p>换一台电脑，可能又要<strong>重新安装、重新设置</strong>。</p></li>
+              <li><b>03</b><p><strong>容器化部署</strong>：把网站前后端服务和它需要的运行条件整理好，按同一套方法启动。</p></li>
+            </ol>
+            <div class="analogy-card" data-animate>
+              <span class="mini-box" aria-hidden="true"><i></i></span>
+              <p><small>生活化理解</small>像搬家时把物品装进标准箱，再附上安装说明。搬到新的地方，就能照着说明快速恢复。</p>
+            </div>
+          </div>
+
+          <figure class="moving-figure" data-animate>
+            <div class="figure-label"><span>网站的各个部分</span><i>→</i><span>整理成一套</span><i>→</i><span>换个地方也能启动</span></div>
+            <div class="image-wrap">
+              <img src="assets/moving-box.png" alt="网站搬家箱示意图：网页、业务处理和资料库整理成一套打包方案，再在另一台电脑或服务器上启动" />
+              <div class="packing-tags" aria-hidden="true"><span>网页</span><span>业务处理</span><span>资料库</span></div>
+            </div>
+            <figcaption>同一套打包方案 · 同一套启动方法</figcaption>
+          </figure>
+        </div>
+
+        <div class="data-note" data-animate><b>数据要另外妥善保存</b><span>资料库软件可以一起安排启动，用户账号、订单等数据要另外妥善保存。</span><i>配置可重建，业务数据不能丢。</i></div>
+        <aside class="speaker-note">建议用时 5 分钟。先描述分开启动和换电脑后重新安装设置的麻烦，再引出容器化部署：把网站与运行条件整理好，以同一套方法启动。结合右侧搬家箱配图讲解“网页、业务处理、资料库 → 一套打包方案 → 新电脑或服务器启动”。特别强调：资料库软件可以一起启动，但账号、订单等业务数据需要持久化并妥善备份，不能因为容器重建而丢失。</aside>
+      </section>
+
+      <section class="slide benefits-slide" data-title="这样做能省哪些事">
+        <p class="eyebrow" data-animate>03 · 价值 / LESS FRICTION</p>
+        <div class="title-row compact" data-animate>
+          <h2>这样做，能省<em>哪些事？</em></h2>
+          <p>不只是“换一种启动命令”<br /><b>而是减少每次环境变化带来的重复劳动</b></p>
+        </div>
+
+        <div class="benefit-grid">
+          <article data-animate><span class="benefit-icon">↻</span><small>01 / SETUP</small><h3>少折腾</h3><p>减少反复安装和设置。</p><i>环境准备不再从零开始</i></article>
+          <article data-animate><span class="benefit-icon">▶</span><small>02 / START</small><h3>好启动</h3><p>原来分开启动，现在统一管理。</p><i>一套方法管理服务</i></article>
+          <article data-animate><span class="benefit-icon">→</span><small>03 / MOVE</small><h3>好搬家</h3><p>以后搬到服务器，少走一些弯路。</p><i>本地经验可以延续</i></article>
+          <article data-animate><span class="benefit-icon">▦</span><small>04 / ISOLATE</small><h3>少干扰</h3><p>不同项目各用各的运行条件。</p><i>项目之间更独立</i></article>
+          <article data-animate><span class="benefit-icon">▣</span><small>05 / KEEP</small><h3>好保留</h3><p>重启或更新网站，也能保留账号和订单。</p><i>前提是正确配置数据持久化</i></article>
+        </div>
+
+        <div class="kitchen-analogy" data-animate><span>以前</span><p>每换一家店，都要重新搭厨房</p><b>→</b><span>现在</span><p>带着一套配好的厨房设备搬过去</p></div>
+        <footer class="slide-reminder" data-animate><b>提醒</b><p>在自己电脑上运行，仍然使用自己电脑的资源；要让别人随时访问，还需要部署到服务器。</p></footer>
+        <aside class="speaker-note">建议用时 4 分钟。五项收益逐一解释：少折腾、好启动、好搬家、少干扰、好保留。其中“好保留”必须附带条件：只有正确设置数据持久化并妥善备份，重启或更新后才能保留账号和订单。用厨房设备作类比收束。最后读页脚提醒：本机容器化仍使用本机资源，不等同于公网部署；要让别人随时访问，还要部署到服务器。</aside>
+      </section>
+
+      <section class="slide tools-slide" data-title="Docker 和 Compose 各管什么">
+        <p class="eyebrow" data-animate>04 · 工具 / DOCKER + COMPOSE</p>
+        <h2 data-animate>两个工具，<em>各管什么？</em></h2>
+
+        <div class="tools-layout">
+          <div class="tool-table" data-animate role="table" aria-label="Docker 与 Docker Compose 的区别">
+            <div class="tool-tr tool-head" role="row"><span role="columnheader">工具</span><span role="columnheader">用生活化的话解释</span><span role="columnheader">在网站里的作用</span></div>
+            <div class="tool-tr" role="row">
+              <strong role="cell"><i class="docker-mark" aria-hidden="true">▦</i>Docker</strong>
+              <p role="cell">把各个部分装进独立的<em>“运行箱”</em></p>
+              <p role="cell">让网站的不同部分按准备好的条件运行</p>
+            </div>
+            <div class="tool-tr" role="row">
+              <strong role="cell"><i class="compose-mark" aria-hidden="true">≡</i>Docker<br />Compose</strong>
+              <p role="cell">一张<em>“总安排表”</em></p>
+              <p role="cell">把网页、业务处理和资料库一起启动、停止和连接起来</p>
+            </div>
+          </div>
+
+          <div class="orchestration" data-animate>
+            <small>它们怎样一起工作</small>
+            <div class="compose-sheet"><span>COMPOSE</span><b>总安排表</b><i></i><i></i><i></i></div>
+            <div class="wire" aria-hidden="true"><i></i><i></i><i></i></div>
+            <div class="container-row">
+              <div class="run-box"><span>▧</span><b>网页</b><small>运行箱</small></div>
+              <div class="run-box"><span>⚙</span><b>业务处理</b><small>运行箱</small></div>
+              <div class="run-box"><span>▤</span><b>资料库</b><small>运行箱</small></div>
+            </div>
+            <p><b>Docker</b> 让每个箱子运行起来<br /><b>Compose</b> 安排箱子一起工作</p>
+          </div>
+        </div>
+
+        <div class="remember-banner" data-animate><small>只需要记住</small><strong>名字认识即可</strong><span>具体配置可以交给 AI 完成。</span></div>
+        <aside class="speaker-note">建议用时 4 分钟。Docker 负责把各个部分装进独立运行箱并让其按准备好的条件运行；Docker Compose 像总安排表，负责多个部分的启动、停止和连接。结合右侧图先指 Compose，再指三个运行箱。不要在这页展开配置文件语法。学员记住两个名字和分工即可，具体配置可以交给 AI 完成。</aside>
+      </section>
+
+      <section class="slide install-slide" data-title="Windows 和 Mac 怎么安装">
+        <p class="eyebrow" data-animate>05 · 动手前 / INSTALL</p>
+        <div class="title-row compact" data-animate>
+          <h2>先安装工具：<br /><em>Windows 和 Mac</em> 怎么选？</h2>
+          <p>课堂统一选择一条路线演示<br /><b>另一条作为补充材料</b></p>
+        </div>
+
+        <div class="install-grid">
+          <article class="os-card windows-card" data-animate>
+            <header><span class="os-logo" aria-hidden="true">⊞</span><div><small>WINDOWS</small><h3>先准备运行底座</h3></div></header>
+            <ol>
+              <li><b>1</b><p>安装或更新 <strong>WSL 2</strong><span>可以理解成“给 Docker 准备运行底座”。</span></p></li>
+              <li><b>2</b><p>按提示<strong>重启电脑</strong></p></li>
+              <li><b>3</b><p>下载并安装 <strong>Docker Desktop</strong><span>打开后完成初始化。</span></p></li>
+            </ol>
+            <div class="command-chip"><code>wsl --install</code><span>较新的 Windows 通常可使用</span></div>
+            <p class="teacher-tip"><b>讲师备注</b>较新的 Windows 通常可通过 <code>wsl --install</code> 安装 WSL，不必一开始就手动下载内核包；旧系统再按提示补充处理。</p>
+            <div class="doc-links"><a href="https://learn.microsoft.com/zh-cn/windows/wsl/install" target="_blank" rel="noreferrer">微软安装说明 ↗</a><a href="https://docs.docker.com/desktop/setup/install/windows-install/" target="_blank" rel="noreferrer">Docker Windows 安装说明 ↗</a></div>
+          </article>
+
+          <article class="os-card mac-card" data-animate>
+            <header><span class="os-logo apple" aria-hidden="true">●</span><div><small>macOS</small><h3>两条路线，课堂选一条</h3></div></header>
+            <div class="route-choice">
+              <section><span>路线 A · 图形界面</span><h4>Docker Desktop</h4><p>安装 Docker Desktop，选择对应的 <b>Apple 芯片</b>或 <b>Intel</b> 版本。</p></section>
+              <section><span>路线 B · 命令行</span><h4>Colima</h4><p>通过 Homebrew 安装 Colima、Docker 和 Compose，再启动 Colima、检查工具是否可用。</p></section>
+            </div>
+            <div class="terminal-card">
+              <div><i></i><i></i><i></i><span>Colima 路线示意</span></div>
+              <code>brew install colima docker docker-compose<br />colima start<br />docker version &amp;&amp; docker compose version</code>
+            </div>
+            <div class="doc-links"><a href="https://docs.docker.com/desktop/setup/install/mac-install/" target="_blank" rel="noreferrer">Docker Mac 安装说明 ↗</a><a href="https://github.com/abiosoft/colima#installation" target="_blank" rel="noreferrer">Colima 安装说明 ↗</a></div>
+          </article>
+        </div>
+        <p class="install-goal" data-animate><b>这一步的目标</b>先把工具装好，并确认能够正常运行；具体项目配置下一步再处理。</p>
+        <aside class="speaker-note">建议用时 5 分钟。Windows 按 WSL 2、重启、Docker Desktop 初始化三步讲。较新的 Windows 通常可用 wsl --install，不必先手动下载内核包；旧系统按提示处理。macOS 有 Docker Desktop 图形界面路线和 Colima 路线；Docker Desktop 需区分 Apple 芯片与 Intel。Colima 通过 Homebrew 安装 Colima、Docker 和 Compose，再启动并检查工具。课堂只统一演示一条路线，另一条作为补充材料。本页只完成工具安装，不展开项目容器配置。</aside>
+      </section>
+
+      <div class="deck-progress" aria-hidden="true"><span id="progressBar"></span></div>
+      <div class="deck-chrome">
+        <button id="prevSlide" type="button" aria-label="上一页"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg></button>
+        <button id="openOverview" type="button">目录</button>
+        <span id="slideCounter">1 / 5</span>
+        <button id="replayAnimation" type="button">重播</button>
+        <button id="toggleNotes" type="button">备注</button>
+        <button id="toggleFullscreen" type="button">全屏</button>
+        <button id="nextSlide" type="button" aria-label="下一页"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg></button>
+      </div>
+    </main>
+
+    <dialog id="overviewDialog" class="overview-dialog">
+      <div class="overview-card">
+        <header><div><small>OVERVIEW</small><h2>页面目录</h2></div><button id="closeOverview" type="button">关闭</button></header>
+        <div id="overviewGrid" class="overview-grid"></div>
+      </div>
+    </dialog>
+
+    <aside id="notesPanel" class="notes-panel" aria-hidden="true">
+      <header><div><small>SPEAKER NOTES</small><b>讲师口述建议</b></div><button id="closeNotes" type="button">关闭</button></header>
+      <p id="notesContent"></p>
+      <div class="keyboard-help"><b>快捷键</b><span>← / → 翻页 · 空格下一页 · F 全屏</span><span>O 目录 · N 备注 · R 重播动画</span></div>
+    </aside>
+
+    <div id="copyToast" class="copy-toast" role="status" aria-live="polite">已复制完整提示词</div>
+    <script src="vendor/gsap.min.js"></script>
+    <script src="app.js?v=3"></script>
+  </body>
+</html>

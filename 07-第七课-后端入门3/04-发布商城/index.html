@@ -1,0 +1,987 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="常州夜宵第6课开场复习：用八字商城的商品发布串起商家、前端、后端与数据库"
+    />
+    <meta name="theme-color" content="#101114" />
+    <title>一件商品如何发布｜第6课开场复习</title>
+    <link rel="icon" href="data:," />
+    <style>
+      :root {
+        --paper: #f2ecdf;
+        --paper-soft: #faf6ec;
+        --ink: #171713;
+        --muted: #716d63;
+        --line: rgba(23, 23, 19, 0.14);
+        --red: #e5412d;
+        --blue: #3157d5;
+        --green: #008f68;
+        --amber: #f0ad23;
+        --dark: #101114;
+        --white: #fffdf7;
+        --shadow: 0 28px 90px rgba(11, 12, 13, 0.28);
+        font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+        color-scheme: light;
+      }
+
+      * { box-sizing: border-box; }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #d7d0c3;
+      }
+
+      body { color: var(--ink); }
+      button { color: inherit; font: inherit; }
+
+      .deck {
+        position: relative;
+        top: 50%;
+        width: min(100vw, calc(100vh * 16 / 9));
+        height: min(100vh, calc(100vw * 9 / 16));
+        margin: auto;
+        overflow: hidden;
+        transform: translateY(-50%);
+        background:
+          linear-gradient(90deg, transparent 49.9%, rgba(23, 23, 19, 0.025) 50%, transparent 50.1%),
+          var(--paper);
+        box-shadow: var(--shadow);
+      }
+
+      .deck::before {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        background-image: radial-gradient(rgba(23, 23, 19, 0.075) 0.7px, transparent 0.7px);
+        background-size: 7px 7px;
+        content: "";
+        opacity: 0.35;
+        pointer-events: none;
+      }
+
+      .scene {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        display: none;
+        padding: 4.5% 6.2% 8%;
+        overflow: hidden;
+      }
+
+      .scene.active { display: block; }
+
+      .scene.active > *:not(.speaker-note) {
+        animation: enter 0.45s cubic-bezier(0.2, 0.75, 0.2, 1) both;
+      }
+
+      .scene.active > *:nth-child(3) { animation-delay: 0.06s; }
+      .scene.active > *:nth-child(4) { animation-delay: 0.12s; }
+
+      @keyframes enter {
+        from { opacity: 0; transform: translateY(18px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      .eyebrow {
+        margin: 0 0 1.1%;
+        color: var(--red);
+        font-size: clamp(0.68rem, 0.95vw, 1rem);
+        font-weight: 900;
+        letter-spacing: 0.14em;
+      }
+
+      h1,
+      h2,
+      h3,
+      p { margin-top: 0; }
+
+      h1 {
+        margin: 4.8% 0 1.2%;
+        font-size: clamp(3.6rem, 8vw, 8.2rem);
+        line-height: 0.9;
+        letter-spacing: -0.075em;
+      }
+
+      h1 em {
+        color: var(--red);
+        font-style: normal;
+      }
+
+      h2 {
+        max-width: 94%;
+        margin-bottom: 2.4%;
+        font-size: clamp(2rem, 4.1vw, 4.2rem);
+        line-height: 1.03;
+        letter-spacing: -0.06em;
+      }
+
+      h3 { margin-bottom: 0.45em; font-size: clamp(1rem, 1.6vw, 1.65rem); }
+      p { line-height: 1.55; }
+      .speaker-note { display: none; }
+
+      .stamp {
+        display: inline-flex;
+        padding: 0.4em 0.7em;
+        border: 2px solid currentColor;
+        color: var(--red);
+        font-size: clamp(0.72rem, 1vw, 1rem);
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        transform: rotate(-2deg);
+      }
+
+      .cover { background: var(--dark); color: var(--white); }
+
+      .cover::before {
+        position: absolute;
+        top: -18%;
+        right: -5%;
+        width: 47%;
+        aspect-ratio: 1;
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        border-radius: 50%;
+        box-shadow:
+          0 0 0 4vw rgba(229, 65, 45, 0.10),
+          0 0 0 9vw rgba(255, 255, 255, 0.025);
+        content: "";
+      }
+
+      .cover h1 { position: relative; z-index: 1; }
+      .cover .eyebrow { color: #ff745f; }
+
+      .cover-lead {
+        color: rgba(255, 253, 247, 0.62);
+        font-size: clamp(1rem, 1.7vw, 1.75rem);
+      }
+
+      .cover-flow {
+        position: absolute;
+        right: 5.7%;
+        bottom: 17%;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        width: 46%;
+        gap: 2.6%;
+      }
+
+      .cover-flow span {
+        display: grid;
+        min-height: 5.5em;
+        place-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.055);
+        font-size: clamp(0.78rem, 1.15vw, 1.18rem);
+        font-weight: 850;
+      }
+
+      .cover-flow span::after {
+        position: absolute;
+        width: 1.2%;
+        height: 2px;
+        margin-left: 12%;
+        background: var(--red);
+        content: "";
+      }
+
+      .cover-flow span:last-child::after { display: none; }
+
+      .cover-time {
+        position: absolute;
+        bottom: 7%;
+        left: 6.2%;
+        color: rgba(255, 253, 247, 0.44);
+        font-size: clamp(0.68rem, 0.95vw, 1rem);
+        letter-spacing: 0.06em;
+      }
+
+      .timeline {
+        display: grid;
+        grid-template-columns: 5fr 4fr 7fr 2fr;
+        margin-top: 3.8%;
+        border-top: 4px solid var(--ink);
+      }
+
+      .timeline article {
+        position: relative;
+        min-height: 15.5vw;
+        padding: 10% 8% 7%;
+        border-right: 1px solid var(--line);
+      }
+
+      .timeline article:last-child { border-right: 0; }
+      .timeline article::before {
+        position: absolute;
+        top: -0.52vw;
+        left: 8%;
+        width: 0.95vw;
+        aspect-ratio: 1;
+        border-radius: 50%;
+        background: var(--red);
+        content: "";
+      }
+
+      .timeline small {
+        color: var(--muted);
+        font-size: clamp(0.68rem, 0.95vw, 1rem);
+        font-weight: 800;
+      }
+
+      .timeline strong {
+        display: block;
+        margin: 0.35em 0;
+        font-size: clamp(1rem, 1.75vw, 1.8rem);
+      }
+
+      .timeline p { color: var(--muted); font-size: clamp(0.68rem, 1vw, 1.02rem); }
+
+      .timeline .focus {
+        background: var(--red);
+        color: var(--white);
+      }
+
+      .timeline .focus::before { background: var(--ink); }
+      .timeline .focus small,
+      .timeline .focus p { color: rgba(255, 253, 247, 0.72); }
+
+      .question-stage {
+        display: grid;
+        grid-template-columns: 0.68fr 1.32fr;
+        min-height: 54%;
+        margin-top: 2.5%;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .question-index {
+        display: grid;
+        place-content: center;
+        border-right: 1px solid var(--line);
+        color: var(--red);
+        text-align: center;
+      }
+
+      .question-index span {
+        font-size: clamp(4rem, 9vw, 9rem);
+        font-weight: 950;
+        line-height: 0.8;
+        letter-spacing: -0.08em;
+      }
+
+      .question-index small {
+        margin-top: 1em;
+        color: var(--muted);
+        font-size: clamp(0.68rem, 1vw, 1rem);
+        font-weight: 800;
+        letter-spacing: 0.12em;
+      }
+
+      .question-copy {
+        display: grid;
+        padding: 7% 8%;
+        align-content: center;
+      }
+
+      .question-copy blockquote {
+        margin: 0;
+        font-size: clamp(1.45rem, 3.25vw, 3.35rem);
+        font-weight: 850;
+        line-height: 1.2;
+        letter-spacing: -0.045em;
+      }
+
+      .question-copy p {
+        margin: 1.3em 0 0;
+        color: var(--muted);
+        font-size: clamp(0.75rem, 1.1vw, 1.12rem);
+      }
+
+      .question-dots {
+        display: flex;
+        justify-content: center;
+        gap: 0.6em;
+        margin-top: 2%;
+      }
+
+      .question-dots i {
+        width: clamp(7px, 0.7vw, 11px);
+        aspect-ratio: 1;
+        border: 1px solid var(--ink);
+        border-radius: 50%;
+        transition: 0.25s ease;
+      }
+
+      .question-dots i.done { background: var(--ink); }
+      .question-dots i.current { background: var(--red); border-color: var(--red); transform: scale(1.4); }
+
+      .role-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        min-height: 52%;
+        margin-top: 2.4%;
+        border: 1px solid var(--line);
+      }
+
+      .role-card {
+        position: relative;
+        padding: 11% 9% 8%;
+        border-right: 1px solid var(--line);
+        opacity: 0.14;
+        transform: translateY(12px);
+        transition: 0.38s ease;
+      }
+
+      .role-card:last-child { border-right: 0; }
+      .role-card.revealed { opacity: 1; transform: translateY(0); }
+
+      .role-card .number {
+        color: var(--muted);
+        font-size: clamp(0.68rem, 0.9vw, 0.95rem);
+        font-weight: 900;
+      }
+
+      .role-card .role-icon {
+        display: grid;
+        width: 3.7vw;
+        min-width: 34px;
+        max-width: 62px;
+        aspect-ratio: 1;
+        margin: 13% 0 9%;
+        place-items: center;
+        border: 2px solid currentColor;
+        border-radius: 50%;
+        font-size: clamp(1rem, 1.7vw, 1.7rem);
+        font-weight: 900;
+      }
+
+      .role-card:nth-child(1) { color: var(--red); }
+      .role-card:nth-child(2) { color: var(--blue); }
+      .role-card:nth-child(3) { color: var(--green); }
+      .role-card:nth-child(4) { color: #9d6900; }
+
+      .role-card h3 { color: currentColor; font-size: clamp(1.2rem, 2.1vw, 2.15rem); }
+      .role-card strong { display: block; color: var(--ink); font-size: clamp(0.78rem, 1.08vw, 1.1rem); }
+      .role-card p { margin-top: 1em; color: var(--muted); font-size: clamp(0.66rem, 0.94vw, 0.96rem); }
+
+      .role-bridge {
+        display: flex;
+        margin-top: 2.2%;
+        align-items: center;
+        justify-content: center;
+        gap: 1.2em;
+        color: var(--muted);
+        font-size: clamp(0.7rem, 1vw, 1rem);
+        font-weight: 850;
+      }
+
+      .role-bridge i { width: 6vw; height: 1px; background: var(--line); }
+
+      .flow-layout {
+        display: grid;
+        grid-template-columns: 1fr 0.92fr;
+        min-height: 57%;
+        margin-top: 1.5%;
+        gap: 3%;
+      }
+
+      .flow-map {
+        position: relative;
+        display: grid;
+        grid-template-columns: 1fr 0.22fr 1fr 0.22fr 1fr 0.22fr 1fr;
+        grid-template-rows: 1fr 0.45fr 1fr;
+        align-items: center;
+      }
+
+      .flow-node {
+        display: grid;
+        width: 100%;
+        min-height: 7.8vw;
+        padding: 8%;
+        place-content: center;
+        border: 2px solid var(--line);
+        background: rgba(255, 253, 247, 0.6);
+        text-align: center;
+        opacity: 0.28;
+        transition: 0.35s ease;
+      }
+
+      .flow-node strong { font-size: clamp(0.86rem, 1.25vw, 1.28rem); }
+      .flow-node small { margin-top: 0.35em; color: var(--muted); font-size: clamp(0.55rem, 0.78vw, 0.8rem); }
+      .flow-node.active { border-color: var(--red); opacity: 1; box-shadow: 8px 8px 0 rgba(229, 65, 45, 0.13); }
+      .flow-node.visited { opacity: 0.72; }
+
+      .flow-node[data-role="user"] { grid-area: 1 / 1; }
+      .flow-node[data-role="frontend"] { grid-area: 1 / 3; }
+      .flow-node[data-role="backend"] { grid-area: 1 / 5; }
+      .flow-node[data-role="database"] { grid-area: 1 / 7; }
+
+      .flow-arrow {
+        color: var(--line);
+        font-size: clamp(1rem, 2vw, 2rem);
+        font-weight: 900;
+        text-align: center;
+        transition: 0.25s ease;
+      }
+
+      .flow-arrow.active { color: var(--red); transform: translateX(3px); }
+
+      .arrow-1 { grid-area: 1 / 2; }
+      .arrow-2 { grid-area: 1 / 4; }
+      .arrow-3 { grid-area: 1 / 6; }
+
+      .api-note {
+        grid-area: 3 / 2 / 4 / 7;
+        display: flex;
+        padding: 3% 5%;
+        align-items: center;
+        justify-content: space-between;
+        border: 1px dashed var(--line);
+        color: var(--muted);
+        font-size: clamp(0.65rem, 0.9vw, 0.92rem);
+      }
+
+      .api-note b { color: var(--ink); }
+
+      .step-panel {
+        display: grid;
+        padding: 7% 8%;
+        align-content: center;
+        background: var(--dark);
+        color: var(--white);
+      }
+
+      .step-panel small {
+        color: #ff745f;
+        font-size: clamp(0.66rem, 0.9vw, 0.92rem);
+        font-weight: 900;
+        letter-spacing: 0.12em;
+      }
+
+      .step-panel strong {
+        display: block;
+        margin: 0.65em 0 0.4em;
+        font-size: clamp(1.4rem, 2.7vw, 2.8rem);
+        line-height: 1.15;
+        letter-spacing: -0.04em;
+      }
+
+      .step-panel p { color: rgba(255, 253, 247, 0.58); font-size: clamp(0.7rem, 1vw, 1.02rem); }
+      .step-panel code { color: #ffd163; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+      .flow-meter {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 0.35em;
+        margin-top: 1.4em;
+      }
+
+      .flow-meter i { height: 3px; background: rgba(255, 255, 255, 0.15); }
+      .flow-meter i.done { background: var(--red); }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        margin-top: 2.7%;
+        border-top: 4px solid var(--ink);
+      }
+
+      .summary-grid article {
+        min-height: 9.4vw;
+        padding: 5% 6%;
+        border-right: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        opacity: 0.16;
+        transition: 0.35s ease;
+      }
+
+      .summary-grid article:nth-child(even) { border-right: 0; }
+      .summary-grid article.revealed { opacity: 1; }
+      .summary-grid b { color: var(--red); font-size: clamp(1rem, 1.55vw, 1.58rem); }
+      .summary-grid span { margin-left: 0.7em; color: var(--muted); font-size: clamp(0.75rem, 1.08vw, 1.1rem); }
+
+      .transition-question {
+        margin-top: 2.2%;
+        color: var(--muted);
+        font-size: clamp(0.78rem, 1.15vw, 1.18rem);
+        text-align: center;
+      }
+
+      .transition-question b { color: var(--ink); }
+
+      .controls {
+        position: absolute;
+        right: 2.6%;
+        bottom: 2.3%;
+        left: 2.6%;
+        z-index: 10;
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        pointer-events: none;
+      }
+
+      .progress-wrap { display: flex; align-items: center; gap: 0.7em; }
+
+      .progress-track {
+        width: 9vw;
+        height: 3px;
+        overflow: hidden;
+        background: rgba(113, 109, 99, 0.25);
+      }
+
+      .progress-bar { width: 0; height: 100%; background: var(--red); transition: width 0.25s ease; }
+
+      .counter {
+        color: var(--muted);
+        font-size: clamp(0.62rem, 0.82vw, 0.84rem);
+        font-weight: 850;
+      }
+
+      .control-group { display: flex; gap: 0.55em; pointer-events: auto; }
+
+      .control-button {
+        min-width: 3.2em;
+        padding: 0.62em 0.9em;
+        border: 1px solid rgba(113, 109, 99, 0.3);
+        background: rgba(250, 246, 236, 0.88);
+        font-size: clamp(0.65rem, 0.9vw, 0.92rem);
+        font-weight: 850;
+        cursor: pointer;
+        backdrop-filter: blur(12px);
+      }
+
+      .control-button:hover { border-color: var(--ink); }
+      .control-button:focus-visible { outline: 3px solid rgba(49, 87, 213, 0.35); outline-offset: 2px; }
+      .control-button.primary { min-width: 8.6em; border-color: var(--red); background: var(--red); color: var(--white); }
+      .cover ~ .controls { color: var(--ink); }
+
+      .hint {
+        justify-self: end;
+        color: var(--muted);
+        font-size: clamp(0.58rem, 0.78vw, 0.8rem);
+      }
+
+      @media (max-aspect-ratio: 4/5) {
+        html,
+        body { max-width: 100vw; overflow-x: hidden; }
+
+        .deck {
+          top: 0;
+          width: 100vw;
+          height: 100vh;
+          transform: none;
+        }
+
+        .scene { padding: 8vh 6vw 13vh; overflow-x: hidden; overflow-y: auto; }
+        h1 { margin-top: 10vh; font-size: clamp(3.3rem, 16vw, 5.8rem); }
+        h2 { width: 88vw; max-width: 88vw; font-size: clamp(1.55rem, 6.3vw, 2.4rem); word-break: break-all; }
+        .cover-flow { right: 6%; bottom: 22%; left: 6%; width: auto; }
+        .timeline { grid-template-columns: 1fr 1fr; }
+        .timeline article { min-height: 19vh; padding: 8%; }
+        .question-stage { width: 88vw; max-width: 88vw; grid-template-columns: minmax(0, 1fr); min-height: 52vh; }
+        .question-index {
+          display: flex;
+          min-height: 10vh;
+          align-items: center;
+          justify-content: flex-start;
+          gap: 1em;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        .question-index span { font-size: clamp(3.5rem, 16vw, 5.2rem); }
+        .question-index small { margin-top: 0; }
+        .question-copy { min-width: 0; padding: 8% 1%; }
+        .question-copy blockquote { width: 100%; max-width: 100%; font-size: clamp(1.2rem, 5.2vw, 1.7rem); word-break: break-all; }
+        .question-copy p { width: 100%; max-width: 100%; font-size: 0.78rem; word-break: break-all; }
+        .role-grid { grid-template-columns: 1fr 1fr; }
+        .role-card { min-height: 23vh; border-bottom: 1px solid var(--line); }
+        .flow-layout { grid-template-columns: 1fr; }
+        .flow-map {
+          grid-template-columns: 1fr 0.22fr 1fr;
+          grid-template-rows: 1fr 0.3fr 1fr 0.72fr;
+          min-height: 34vh;
+        }
+        .flow-node[data-role="user"] { grid-area: 1 / 1; }
+        .flow-node[data-role="frontend"] { grid-area: 1 / 3; }
+        .flow-node[data-role="backend"] { grid-area: 3 / 3; }
+        .flow-node[data-role="database"] { grid-area: 3 / 1; }
+        .flow-node { min-width: 0; min-height: 11vh; padding: 4%; }
+        .flow-node strong { font-size: 0.72rem; }
+        .flow-node small { display: none; }
+        .flow-arrow { display: none; }
+        .api-note { grid-area: 4 / 1 / 5 / 4; font-size: 0.56rem; }
+        .step-panel { min-height: 25vh; }
+        .summary-grid { grid-template-columns: 1fr; }
+        .summary-grid article,
+        .summary-grid article:nth-child(even) { border-right: 0; }
+        .hint { display: none; }
+        .controls { right: 3vw; bottom: 2vh; left: 3vw; grid-template-columns: auto 1fr; }
+        .control-group { justify-self: end; }
+        .control-button { padding: 0.58em 0.72em; }
+        .control-button.primary { min-width: 6.8em; }
+        #resetButton { display: none; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="deck" id="deck" aria-live="polite">
+      <section class="scene cover active" data-title="一件商品如何发布" data-reveals="0">
+        <p class="eyebrow">常州夜宵 006 · REVIEW</p>
+        <h1>一件商品<br />如何<em>发布</em></h1>
+        <p class="cover-lead">用八字商城，重新串起商家、前端、后端与数据库</p>
+        <div class="cover-flow" aria-label="四个角色">
+          <span>商家</span><span>前端</span><span>后端</span><span>数据库</span>
+        </div>
+        <p class="cover-time">15–20 MIN · 点击“下一步”或按空格键</p>
+        <aside class="speaker-note">建议用时 1 分钟。开场只说任务：“今天我们不背概念，只追踪一件商品是怎样发布出去的。”</aside>
+      </section>
+
+      <section class="scene" data-title="15–20 分钟安排" data-reveals="0">
+        <p class="eyebrow">00 · REVIEW PLAN</p>
+        <h2>先问、再拆、最后跑完一遍</h2>
+        <div class="timeline">
+          <article class="focus">
+            <small>00–05 MIN</small>
+            <strong>情境提问</strong>
+            <p>5 个问题，只说判断与理由。</p>
+          </article>
+          <article>
+            <small>05–09 MIN</small>
+            <strong>四个角色</strong>
+            <p>商家、前端、后端、数据库。</p>
+          </article>
+          <article>
+            <small>09–16 MIN</small>
+            <strong>发布路线</strong>
+            <p>从点击发布，追到商品列表更新。</p>
+          </article>
+          <article>
+            <small>16–18 MIN</small>
+            <strong>收口</strong>
+            <p>四句话总结。</p>
+          </article>
+        </div>
+        <aside class="speaker-note">建议用时 1 分钟。不必向学员逐字读时间，说清“先猜，再画地图”即可。</aside>
+      </section>
+
+      <section class="scene" id="questionScene" data-title="5 分钟情境提问" data-reveals="4">
+        <p class="eyebrow">01 · 5 MIN QUICK CHECK</p>
+        <h2>不背定义，只判断这件事该谁做</h2>
+        <div class="question-stage">
+          <div class="question-index"><span id="questionNumber">01</span><small>QUESTION</small></div>
+          <div class="question-copy">
+            <blockquote id="questionText">商家填好商品信息，点击“发布商品”后，谁最先接到这个操作？</blockquote>
+            <p id="questionPrompt">请先点一位学员回答，再请另一位补充理由。</p>
+          </div>
+        </div>
+        <div class="question-dots" id="questionDots" aria-label="提问进度"></div>
+        <aside class="speaker-note">建议用时 5 分钟。每题约 45–60 秒。这一页不公布标准答案，先记住学员的分歧，后面用四角色和路线图统一。</aside>
+      </section>
+
+      <section class="scene" id="roleScene" data-title="四个角色" data-reveals="4">
+        <p class="eyebrow">02 · FOUR ROLES</p>
+        <h2>一个完整系统，是四个角色在接力</h2>
+        <div class="role-grid">
+          <article class="role-card" data-reveal="1">
+            <span class="number">ROLE 01</span><span class="role-icon">人</span>
+            <h3>商家</h3><strong>发出发布意图</strong>
+            <p>填写商品名称、价格与介绍，点击发布。</p>
+          </article>
+          <article class="role-card" data-reveal="2">
+            <span class="number">ROLE 02</span><span class="role-icon">UI</span>
+            <h3>前端</h3><strong>收集与展示</strong>
+            <p>接住操作、初步检查、发出请求、显示结果。</p>
+          </article>
+          <article class="role-card" data-reveal="3">
+            <span class="number">ROLE 03</span><span class="role-icon">IF</span>
+            <h3>后端</h3><strong>判断与执行</strong>
+            <p>检查商品数据，执行发布规则并要求保存。</p>
+          </article>
+          <article class="role-card" data-reveal="4">
+            <span class="number">ROLE 04</span><span class="role-icon">DB</span>
+            <h3>数据库</h3><strong>长期记住</strong>
+            <p>保存商品名称、价格、介绍和发布状态。</p>
+          </article>
+        </div>
+        <div class="role-bridge"><span>商家提出发布需求</span><i></i><span>API 负责按约定传话</span><i></i><span>数据一路往返</span></div>
+        <aside class="speaker-note">建议用时 4 分钟。每点一次显示一个角色。可以让四位学员各自用一句话重复自己的职责。</aside>
+      </section>
+
+      <section class="scene" id="flowScene" data-title="一件商品的完整发布路线" data-reveals="7">
+        <p class="eyebrow">03 · END-TO-END FLOW</p>
+        <h2>现在，让一件商品真正发布出去</h2>
+        <div class="flow-layout">
+          <div class="flow-map" aria-label="八字商城商品发布数据流">
+            <div class="flow-node" data-role="user"><strong>商家</strong><small>填写商品信息</small></div>
+            <span class="flow-arrow arrow-1" data-arrow="frontend">→</span>
+            <div class="flow-node" data-role="frontend"><strong>前端</strong><small>表单与结果页</small></div>
+            <span class="flow-arrow arrow-2" data-arrow="backend">→</span>
+            <div class="flow-node" data-role="backend"><strong>后端</strong><small>发布规则</small></div>
+            <span class="flow-arrow arrow-3" data-arrow="database">→</span>
+            <div class="flow-node" data-role="database"><strong>数据库</strong><small>商品记录</small></div>
+            <div class="api-note"><span><b>API</b> 不是第五个业务角色</span><span>它是前端与后端约定好的“传话方式”</span></div>
+          </div>
+          <div class="step-panel">
+            <small id="flowKicker">STEP 01 / 08 · MERCHANT</small>
+            <strong id="flowTitle">填写商品，点击发布</strong>
+            <p id="flowDescription">商家填写“AI 事业分析报告”的名称、价格和介绍。</p>
+            <p><code id="flowData">意图：我想发布这件商品</code></p>
+            <div class="flow-meter" id="flowMeter" aria-label="路线进度"></div>
+          </div>
+        </div>
+        <aside class="speaker-note">建议用时 7 分钟。每次点击只前进一步，让学员在显示前先猜“下一站是谁”和“传什么数据”。</aside>
+      </section>
+
+      <section class="scene" id="summaryScene" data-title="四句话收口" data-reveals="4">
+        <p class="eyebrow">04 · WRAP-UP</p>
+        <h2>最后只记住四句话</h2>
+        <div class="summary-grid">
+          <article data-reveal="1"><b>商家</b><span>提出“我想发布什么”。</span></article>
+          <article data-reveal="2"><b>前端</b><span>负责看得见、点得动。</span></article>
+          <article data-reveal="3"><b>后端</b><span>负责判断能不能做、怎么做。</span></article>
+          <article data-reveal="4"><b>数据库</b><span>负责把需要的信息长期记住。</span></article>
+        </div>
+        <p class="transition-question">接下来的新功能都可以先问：<b>它要改哪个角色？数据要走哪条路？</b></p>
+        <aside class="speaker-note">建议用时 2 分钟。让全班齐声说出四句话，然后直接过渡到第6课的新内容。</aside>
+      </section>
+
+      <nav class="controls" aria-label="演示控制">
+        <div class="progress-wrap">
+          <div class="progress-track" aria-hidden="true"><div class="progress-bar" id="progressBar"></div></div>
+          <span class="counter" id="counter">1 / 6</span>
+        </div>
+        <div class="control-group">
+          <button class="control-button" id="previousButton" type="button" aria-label="上一步">← 上一步</button>
+          <button class="control-button primary" id="nextButton" type="button">下一步 →</button>
+          <button class="control-button" id="resetButton" type="button" aria-label="重新开始">重置</button>
+        </div>
+        <span class="hint">← → / 空格键 · F 全屏 · R 重置</span>
+      </nav>
+    </main>
+
+    <script>
+      const scenes = [...document.querySelectorAll('.scene')];
+      const previousButton = document.querySelector('#previousButton');
+      const nextButton = document.querySelector('#nextButton');
+      const resetButton = document.querySelector('#resetButton');
+      const progressBar = document.querySelector('#progressBar');
+      const counter = document.querySelector('#counter');
+
+      const questions = [
+        {
+          text: '商家填好商品信息，点击“发布商品”后，谁最先接到这个操作？',
+          prompt: '请先点一位学员回答，再请另一位补充理由。',
+        },
+        {
+          text: '商品名称没有填，谁可以先提醒商家？',
+          prompt: '追问：前端提醒了，后端还需要再检查吗？',
+        },
+        {
+          text: '前端收集好商品名称、价格和介绍后，通过什么方式交给后端？',
+          prompt: '追问：前端和后端需要事先约定哪些内容？',
+        },
+        {
+          text: '商品发布后刷新页面仍然存在，说明它长期保存在哪里？',
+          prompt: '追问：如果只放在当前页面的变量里，刷新后会怎样？',
+        },
+        {
+          text: '数据库保存成功后，“发布成功”这个结果要怎样回到页面？',
+          prompt: '请从数据库开始，按顺序说出它经过的角色。',
+        },
+      ];
+
+      const flowSteps = [
+        { role: 'user', kicker: 'STEP 01 / 08 · MERCHANT', title: '填写商品，点击发布', description: '商家填写“AI 事业分析报告”的名称、价格和介绍。', data: '意图：我想发布这件商品' },
+        { role: 'frontend', arrow: 'frontend', kicker: 'STEP 02 / 08 · FRONTEND', title: '前端先接住操作', description: '检查必填项，把商品名称、价格和介绍整理好。', data: '表单：name + price + description' },
+        { role: 'backend', arrow: 'backend', kicker: 'STEP 03 / 08 · API', title: '前端向后端发请求', description: '两边按约定好的 API 格式传递商品数据。', data: 'POST /api/products' },
+        { role: 'backend', kicker: 'STEP 04 / 08 · BACKEND', title: '后端检查发布数据', description: '后端再次检查名称、价格和介绍是否完整，准备保存。', data: '规则：必填字段完整，价格格式正确' },
+        { role: 'database', arrow: 'database', kicker: 'STEP 05 / 08 · DATABASE', title: '数据库保存商品', description: '后端检查通过后，要求数据库写入一条已发布商品。', data: 'product · status: published' },
+        { role: 'database', arrow: 'database', reverse: true, kicker: 'STEP 06 / 08 · DATABASE', title: '数据库返回保存结果', description: '数据库告诉后端：已经保存成功，这是商品编号。', data: 'saved: true · productId: 24' },
+        { role: 'backend', arrow: 'backend', reverse: true, kicker: 'STEP 07 / 08 · RESPONSE', title: '后端返回发布结果', description: '后端把商品编号和已发布状态交还给前端。', data: '201 Created · productId: 24' },
+        { role: 'frontend', arrow: 'frontend', reverse: true, kicker: 'STEP 08 / 08 · FRONTEND', title: '前端显示“发布成功”', description: '商品列表增加一张新卡片；完整的数据往返到此结束。', data: '页面：商品 #24 已发布' },
+      ];
+
+      let sceneIndex = 0;
+      let revealIndex = 0;
+
+      const questionNumber = document.querySelector('#questionNumber');
+      const questionText = document.querySelector('#questionText');
+      const questionPrompt = document.querySelector('#questionPrompt');
+      const questionDots = document.querySelector('#questionDots');
+      const flowKicker = document.querySelector('#flowKicker');
+      const flowTitle = document.querySelector('#flowTitle');
+      const flowDescription = document.querySelector('#flowDescription');
+      const flowData = document.querySelector('#flowData');
+      const flowMeter = document.querySelector('#flowMeter');
+
+      function buildIndicators() {
+        questionDots.replaceChildren(...questions.map(() => document.createElement('i')));
+        flowMeter.replaceChildren(...flowSteps.map(() => document.createElement('i')));
+      }
+
+      function currentMaxReveal() {
+        return Number(scenes[sceneIndex].dataset.reveals || 0);
+      }
+
+      function loadPositionFromHash() {
+        const match = window.location.hash.match(/^#scene-(\d+)-step-(\d+)$/);
+        if (!match) return;
+        sceneIndex = Math.min(scenes.length - 1, Math.max(0, Number(match[1]) - 1));
+        revealIndex = Math.min(currentMaxReveal(), Math.max(0, Number(match[2]) - 1));
+      }
+
+      function renderQuestions() {
+        const item = questions[revealIndex];
+        questionNumber.textContent = String(revealIndex + 1).padStart(2, '0');
+        questionText.textContent = item.text;
+        questionPrompt.textContent = item.prompt;
+        [...questionDots.children].forEach((dot, index) => {
+          dot.classList.toggle('done', index < revealIndex);
+          dot.classList.toggle('current', index === revealIndex);
+        });
+      }
+
+      function renderRoles() {
+        document.querySelectorAll('#roleScene [data-reveal]').forEach((card) => {
+          card.classList.toggle('revealed', Number(card.dataset.reveal) <= revealIndex);
+        });
+      }
+
+      function renderFlow() {
+        const item = flowSteps[revealIndex];
+        flowKicker.textContent = item.kicker;
+        flowTitle.textContent = item.title;
+        flowDescription.textContent = item.description;
+        flowData.textContent = item.data;
+
+        document.querySelectorAll('.flow-node').forEach((node) => {
+          const matchingSteps = flowSteps.slice(0, revealIndex + 1).filter((step) => step.role === node.dataset.role);
+          node.classList.toggle('visited', matchingSteps.length > 0);
+          node.classList.toggle('active', node.dataset.role === item.role);
+        });
+
+        document.querySelectorAll('.flow-arrow').forEach((arrow) => {
+          arrow.classList.toggle('active', arrow.dataset.arrow === item.arrow);
+          arrow.textContent = arrow.dataset.arrow === item.arrow && item.reverse ? '←' : '→';
+        });
+
+        [...flowMeter.children].forEach((segment, index) => {
+          segment.classList.toggle('done', index <= revealIndex);
+        });
+      }
+
+      function renderSummary() {
+        document.querySelectorAll('#summaryScene [data-reveal]').forEach((item) => {
+          item.classList.toggle('revealed', Number(item.dataset.reveal) <= revealIndex);
+        });
+      }
+
+      function renderReveal() {
+        if (scenes[sceneIndex].id === 'questionScene') renderQuestions();
+        if (scenes[sceneIndex].id === 'roleScene') renderRoles();
+        if (scenes[sceneIndex].id === 'flowScene') renderFlow();
+        if (scenes[sceneIndex].id === 'summaryScene') renderSummary();
+      }
+
+      function render() {
+        scenes.forEach((scene, index) => scene.classList.toggle('active', index === sceneIndex));
+        renderReveal();
+
+        const totalUnits = scenes.reduce((total, scene) => total + Number(scene.dataset.reveals || 0) + 1, 0);
+        const completedUnits = scenes.slice(0, sceneIndex).reduce((total, scene) => total + Number(scene.dataset.reveals || 0) + 1, 0) + revealIndex + 1;
+        progressBar.style.width = `${(completedUnits / totalUnits) * 100}%`;
+        counter.textContent = `${sceneIndex + 1} / ${scenes.length}`;
+        document.title = `${scenes[sceneIndex].dataset.title}｜第6课开场复习`;
+        previousButton.disabled = sceneIndex === 0 && revealIndex === 0;
+        nextButton.textContent = sceneIndex === scenes.length - 1 && revealIndex === currentMaxReveal() ? '重新开始 ↺' : '下一步 →';
+        history.replaceState(null, '', `#scene-${sceneIndex + 1}-step-${revealIndex + 1}`);
+      }
+
+      function next() {
+        if (revealIndex < currentMaxReveal()) {
+          revealIndex += 1;
+        } else if (sceneIndex < scenes.length - 1) {
+          sceneIndex += 1;
+          revealIndex = 0;
+        } else {
+          sceneIndex = 0;
+          revealIndex = 0;
+        }
+        render();
+      }
+
+      function previous() {
+        if (revealIndex > 0) {
+          revealIndex -= 1;
+        } else if (sceneIndex > 0) {
+          sceneIndex -= 1;
+          revealIndex = currentMaxReveal();
+        }
+        render();
+      }
+
+      function reset() {
+        sceneIndex = 0;
+        revealIndex = 0;
+        render();
+      }
+
+      async function toggleFullscreen() {
+        try {
+          if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+          else await document.exitFullscreen();
+        } catch {
+          // 部分浏览器会限制 file:// 页面进入全屏，不影响其他交互。
+        }
+      }
+
+      previousButton.addEventListener('click', previous);
+      nextButton.addEventListener('click', next);
+      resetButton.addEventListener('click', reset);
+
+      window.addEventListener('keydown', (event) => {
+        if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(event.key)) {
+          event.preventDefault();
+          next();
+        } else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(event.key)) {
+          event.preventDefault();
+          previous();
+        } else if (event.key.toLowerCase() === 'r') {
+          reset();
+        } else if (event.key.toLowerCase() === 'f') {
+          toggleFullscreen();
+        }
+      });
+
+      let touchStartX = 0;
+      let touchStartY = 0;
+      document.querySelector('#deck').addEventListener('touchstart', (event) => {
+        touchStartX = event.changedTouches[0].clientX;
+        touchStartY = event.changedTouches[0].clientY;
+      }, { passive: true });
+
+      document.querySelector('#deck').addEventListener('touchend', (event) => {
+        const deltaX = event.changedTouches[0].clientX - touchStartX;
+        const deltaY = event.changedTouches[0].clientY - touchStartY;
+        if (Math.abs(deltaX) < 55 || Math.abs(deltaX) < Math.abs(deltaY)) return;
+        if (deltaX < 0) next();
+        else previous();
+      }, { passive: true });
+
+      buildIndicators();
+      loadPositionFromHash();
+      render();
+    </script>
+  </body>
+</html>
